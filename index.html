@@ -3,189 +3,441 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2025年10月 经营数据深度审计报告</title>
+    <title>2025年10月 经营数据深度审计系统</title>
+    <!-- 引入 Chart.js 用于图表绘制 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 FontAwesome 用于图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        
-        .header { background: linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .header h1 { margin: 0; font-size: 26px; font-weight: 600; }
-        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 15px; }
-        
-        .section-title { font-size: 18px; font-weight: bold; margin: 30px 0 15px; padding-left: 10px; border-left: 5px solid #3498db; color: #2c3e50; }
-        
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 20px; }
-        
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .card h3 { margin-top: 0; color: #555; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        
-        /* 警告卡片样式 */
-        .card.danger { border-left: 5px solid #e74c3c; }
-        .card.warning { border-left: 5px solid #f39c12; }
-        .card.success { border-left: 5px solid #27ae60; }
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --success: #27ae60;
+            --bg: #f4f6f9;
+        }
 
-        .stat-val { font-size: 24px; font-weight: bold; margin: 10px 0; }
-        .text-red { color: #e74c3c; }
-        .text-green { color: #27ae60; }
-        .text-orange { color: #d35400; }
-        
-        .list-item { margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
-        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: white; margin-right: 5px; }
-        .bg-red { background-color: #e74c3c; }
-        .bg-blue { background-color: #3498db; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            color: #333;
+            overflow-x: hidden;
+        }
 
-        .chart-box { position: relative; height: 250px; width: 100%; }
+        /* 导航栏 */
+        .navbar {
+            background-color: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .steps {
+            display: flex;
+            gap: 20px;
+        }
+
+        .step-indicator {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #999;
+            background: #eee;
+            cursor: default;
+            transition: all 0.3s;
+        }
+
+        .step-indicator.active {
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.4);
+        }
+
+        /* 页面容器 */
+        .page {
+            display: none;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+
+        /* 统计数字 */
+        .stat-box { text-align: center; }
+        .stat-num { font-size: 32px; font-weight: bold; margin: 10px 0; color: var(--primary); }
+        .stat-label { color: #7f8c8d; font-size: 14px; }
+        .trend-up { color: var(--success); font-size: 0.8em; }
+        .trend-down { color: var(--danger); font-size: 0.8em; }
+
+        /* 按钮 */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: block;
+            margin: 30px auto;
+            width: fit-content;
+        }
+        .btn:hover { background: #2980b9; }
+        .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+
+        /* 警示框 */
+        .alert-box {
+            border-left: 5px solid var(--danger);
+            background: #fff5f5;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+        }
+        .alert-title { color: var(--danger); font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+
+        /* 报告样式 */
+        .report-section {
+            border-left: 3px solid #ddd;
+            padding-left: 20px;
+            margin-bottom: 30px;
+        }
+        .report-section h3 { color: var(--secondary); margin-top: 0; }
+        .report-path {
+            background: #eef2f7;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 15px;
+        }
         
-        .insight-box { background-color: #eef2f7; padding: 15px; border-radius: 8px; margin-top: 10px; }
-        .insight-box strong { color: #2980b9; }
+        .typewriter p {
+            border-right: .15em solid orange;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>2025年10月 经营数据深度审计与复盘</h1>
-        <p>📊 经交叉比对10张报表，发现3大管理隐患与结构性问题</p>
+    <!-- 顶部导航 -->
+    <div class="navbar">
+        <h1>🔍 经营数据审计系统 <span style="font-size:0.6em; color:#999;">V2.0</span></h1>
+        <div class="steps">
+            <div id="step1" class="step-indicator active">1. 数据重构</div>
+            <div id="step2" class="step-indicator">2. 交叉侦查</div>
+            <div id="step3" class="step-indicator">3. 洞察报告</div>
+        </div>
     </div>
 
-    <div class="section-title">🚨 核心管理隐患 (必须重视)</div>
-    <div class="grid">
-        <div class="card danger">
-            <h3><span class="tag bg-red">异常</span>泽云店：后勤薪资倒挂</h3>
-            <div class="chart-box">
-                <canvas id="salaryMismatchChart"></canvas>
+    <!-- 第一页：数据重构 (The Surface) -->
+    <div id="page1" class="page active">
+        <div class="card" style="text-align: center; border-top: 5px solid var(--success);">
+            <h2>📊 10月经营全景 (表面数据)</h2>
+            <p>基于您提供的10张原始报表整理，表面看是一份极其漂亮的成绩单。</p>
+        </div>
+
+        <div class="grid-3">
+            <div class="card stat-box">
+                <div class="stat-label">10月总营收</div>
+                <div class="stat-num">3,325,037 元</div>
+                <div class="trend-up">▲ 环比增长 126%</div>
             </div>
-            <div class="insight-box">
-                <strong>问题点：</strong> 17个打杂人员(后勤)的工资竟然比17个厨师(后厨)高出8,500元。<br>
-                <strong>疑点：</strong> 是加班费失控？还是人员定岗错误？技术工种薪资低于辅助工种极不合理。
+            <div class="card stat-box">
+                <div class="stat-label">工资总额 (含外援)</div>
+                <div class="stat-num">501,817 元</div>
+                <div class="trend-up">占比仅 15.09% (优秀)</div>
+            </div>
+            <div class="card stat-box">
+                <div class="stat-label">核心增长引擎</div>
+                <div class="stat-num">泽云宴会</div>
+                <div class="trend-up">单部门贡献 128万</div>
             </div>
         </div>
 
-        <div class="card danger">
-            <h3><span class="tag bg-red">亏损</span>汤臣店：餐饮部效能坍塌</h3>
-            <div class="stat-val text-red">月营收 2.84 万元</div>
-            <p class="list-item">👉 日均营收不足 1,000 元</p>
-            <p class="list-item">👉 员工配置：2人 (仅发薪5,890元，看似低但没产出)</p>
-            <div class="insight-box">
-                <strong>建议：</strong> 立即评估是否转型为“前台兼管+外包早餐”，彻底砍掉餐饮编制。
+        <div class="grid-2">
+            <div class="card">
+                <h3>📈 营收趋势对比 (9月 vs 10月)</h3>
+                <canvas id="revenueChart"></canvas>
+            </div>
+            <div class="card">
+                <h3>💰 泽云店收入结构</h3>
+                <canvas id="structureChart"></canvas>
+            </div>
+        </div>
+
+        <button class="btn" onclick="goToPage(2)">数据看起来很完美，深入挖掘 ➡️</button>
+    </div>
+
+    <!-- 第二页：交叉侦查 (The Interrogation) -->
+    <div id="page2" class="page">
+        <div class="card" style="border-top: 5px solid var(--danger);">
+            <h2>🕵️ 交叉侦查：数据里的“隐秘角落”</h2>
+            <p>通过对比《工资表》、《部门汇总表》与《日报表》，我们发现了记录上的偷懒和结构上的倒挂。</p>
+        </div>
+
+        <!-- 疑点 1 -->
+        <div class="card">
+            <div class="alert-box">
+                <div class="alert-title"><i class="fas fa-exclamation-triangle"></i> 疑点一：薪资倒挂 (管理层可能未察觉)</div>
+                <p><strong>数据来源交叉：</strong> 图2 (部门工资) vs 行业常识</p>
+                <p>泽云店后厨（核心技术岗）工资总额竟低于后勤（洗碗/打扫）。这通常意味着后勤编制严重冗余，或者有人在吃空饷。</p>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="salaryMismatchChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- 疑点 2 -->
+            <div class="card">
+                <div class="alert-box" style="border-left-color: var(--warning);">
+                    <div class="alert-title" style="color: var(--warning);"><i class="fas fa-search-dollar"></i> 疑点二：谁在拿“外援费”？</div>
+                    <p><strong>数据来源交叉：</strong> 图1 (总表) vs 图4 (宴会表) vs 图8 (餐饮成本)</p>
+                    <p>总表显示外援8.6万，宴会只认领了4.7万。剩下近4万元去了哪里？数据显示被“后厨”和“零点”分摊了。</p>
+                    <hr>
+                    <p style="font-size: 0.9em; color: #666;">
+                        <strong>分析师旁白：</strong> 记录者可能图省事，把所有无法归类的临时工支出都扔进了“后厨外援”这个大筐里，导致后厨成本看起来虚高，且难以审计。
+                    </p>
+                </div>
+                <canvas id="outsourcingChart"></canvas>
+            </div>
+
+            <!-- 疑点 3 -->
+            <div class="card">
+                <div class="alert-box" style="border-left-color: var(--accent);">
+                    <div class="alert-title" style="color: var(--accent);"><i class="fas fa-balance-scale"></i> 疑点三：激励机制失效</div>
+                    <p><strong>数据来源交叉：</strong> 图2 (工资明细)</p>
+                    <p>在一个销售额暴涨的月份，<strong>全勤奖 (8,217元)</strong> 发的比 <strong>销售提成 (7,093元)</strong> 还多。</p>
+                </div>
+                <div style="padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>💡 这说明了什么？</h3>
+                    <p>员工只要“按时打卡”拿到的钱，比“拼命卖宴会”拿到的钱还多。这解释了为什么淡季业绩会断崖式下跌——因为没有足够的动力去主动获客。</p>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="goToPage(3)">查看分析师最终结论 ➡️</button>
+    </div>
+
+    <!-- 第三页：洞察报告 (The Verdict) -->
+    <div id="page3" class="page">
+        <div class="card" style="border-top: 5px solid var(--primary);">
+            <h2>📑 首席数据分析师总结报告</h2>
+            <p>作为您的数据挖掘顾问，以下是我对这组数据的深度解读与推理路径。</p>
+        </div>
+
+        <div class="grid-2">
+            <!-- 左侧：推理路径 -->
+            <div class="card">
+                <h3>🧠 我的推理路径 (Logic Chain)</h3>
+                
+                <div class="report-section">
+                    <div class="report-path">> 收到数据：10张杂乱图片</div>
+                    <p>第一眼看到的是“全线飘红”，10月总营收翻倍。普通财务会说：“干得漂亮”。</p>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-path">> 挖掘动作：计算人效比 (Per Capita Efficiency)</div>
+                    <p>我计算了各部门的人均产出。汤臣客房人效极高，但汤臣餐饮人效接近于零（2个人一个月做2.8万，还没扣除食材成本，几乎是负资产）。</p>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-path">> 挖掘动作：异常值检测 (Anomaly Detection)</div>
+                    <p>我检查了工资结构。发现泽云后勤（洗碗/保洁）的工资总额竟然超过了厨师团队。这在餐饮业是不合逻辑的（Abnormal）。推测是管理层对“编制”没有控制，或者设备落后导致单纯堆砌人力。</p>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-path">> 挖掘动作：记录一致性检查 (Integrity Check)</div>
+                    <p>发现文字总结中说“客房计件下降”，但数据表里明明是上升。这说明汇报人是直接复制粘贴了上个月的模板，或者根本没看数据。这种“图省事”的习惯也体现在外援费用的记录上。</p>
+                </div>
+            </div>
+
+            <!-- 右侧：建议与结论 -->
+            <div class="card" style="background-color: #fcfcfc;">
+                <h3>🚀 关键行动建议 (Action Plan)</h3>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: var(--danger);">1. 立即审计“后勤部”</h4>
+                    <p style="font-size: 14px; color: #555;">不要只看总数。去查泽云店后勤那17个人的排班表。为什么洗碗扫地需要发9.5万工资？引入洗碗机或外包保洁，至少能砍掉30%成本。</p>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: var(--warning);">2. 重构“汤臣餐饮”</h4>
+                    <p style="font-size: 14px; color: #555;">该部门是典型的“僵尸部门”。数据告诉你，它不仅不赚钱，还在吞噬客房赚来的利润。建议：要么裁撤改为只做早餐，要么利用住店客流强制做夜宵转化。</p>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: var(--accent);">3. 修正“懒惰记录”习惯</h4>
+                    <p style="font-size: 14px; color: #555;">外援费用必须建立“一人一单”的即时申报制度。现在的记录方式是一笔糊涂账，以后如果业绩下滑，这就是最大的止损盲区。</p>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: var(--success);">4. 激活销售动力</h4>
+                    <p style="font-size: 14px; color: #555;">削减全勤奖比例，将这部分预算加到销售提成里。让员工觉得“多拉一个客户”比“准点打卡”更划算。</p>
+                </div>
             </div>
         </div>
         
-        <div class="card warning">
-            <h3><span class="tag bg-red">机制</span>全勤奖 > 销售提成</h3>
-            <p class="list-item">泽云店全勤奖总额：<strong>8,217 元</strong></p>
-            <p class="list-item">泽云店销售绩效总额：<strong>7,093 元</strong></p>
-            <div class="insight-box">
-                <strong>管理洞察：</strong> 在一个宴会营收占45%的销售导向型门店，奖励“不迟到”的钱竟然比奖励“多卖钱”的钱还多。这会导致员工缺乏狼性。
-            </div>
-        </div>
+        <button class="btn btn-outline" onclick="goToPage(1)">🔄 返回数据大屏</button>
     </div>
 
-    <div class="section-title">📈 业绩亮点与外援分析</div>
-    <div class="grid">
-        <div class="card success">
-            <h3>两店总营收趋势</h3>
-            <div class="chart-box">
-                <canvas id="revenueTrendChart"></canvas>
-            </div>
-            <p style="text-align:center; font-size:12px; color:#666;">10月黄金周效应极其明显，汤臣翻倍，泽云近三倍。</p>
-        </div>
+    <script>
+        // 页面切换逻辑
+        function goToPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.querySelectorAll('.step-indicator').forEach(step => step.classList.remove('active'));
 
-        <div class="card warning">
-            <h3>泽云外援成本黑箱</h3>
-            <div class="stat-val text-orange">总外援：86,733 元</div>
-            <ul style="padding-left: 20px; font-size: 14px;">
-                <li>宴会外援：47,960 元</li>
-                <li>厨房/其他外援：38,773 元 (❌ 隐形成本)</li>
-            </ul>
-            <div class="insight-box">
-                <strong>警惕：</strong> 在已有17名正式厨师的情况下，后厨依然消耗了大量外援费用。需核查排班表。
-            </div>
-        </div>
-    </div>
+            // 显示目标页面
+            document.getElementById('page' + pageId).classList.add('active');
+            
+            // 更新进度条
+            for(let i = 1; i <= pageId; i++) {
+                document.getElementById('step' + i).classList.add('active');
+            }
+            
+            // 滚动到顶部
+            window.scrollTo(0, 0);
+        }
 
-    <div class="section-title">🚀 下一步行动建议</div>
-    <div class="card" style="margin-bottom: 30px;">
-        <table style="width:100%; border-collapse: collapse;">
-            <tr style="background:#f8f9fa; border-bottom:2px solid #eee;">
-                <th style="padding:10px; text-align:left;">领域</th>
-                <th style="padding:10px; text-align:left;">发现问题</th>
-                <th style="padding:10px; text-align:left;">具体执行动作</th>
-            </tr>
-            <tr>
-                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>人员结构</strong></td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">泽云后勤(洗碗/保洁)工资高于厨师</td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">1. 查10月后勤考勤表。<br>2. 评估购买洗碗机/扫地机，裁减3-4名后勤人员。</td>
-            </tr>
-            <tr>
-                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>汤臣运营</strong></td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">餐饮部形同虚设，严重拖累人效</td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">1. 停止正餐备货，仅保留早餐。<br>2. 现有2名餐饮员工转岗或优化。</td>
-            </tr>
-            <tr>
-                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>薪酬绩效</strong></td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">全勤奖高于销售提成</td>
-                <td style="padding:10px; border-bottom:1px solid #eee;">1. 降低全勤奖权重。<br>2. 大幅提高宴会销售提成比例，刺激淡季销售。</td>
-            </tr>
-        </table>
-    </div>
-
-</div>
-
-<script>
-    // 图表1：薪资倒挂分析
-    new Chart(document.getElementById('salaryMismatchChart'), {
-        type: 'bar',
-        data: {
-            labels: ['后厨部 (核心技术)', '后勤部 (辅助打杂)'],
-            datasets: [{
-                label: '10月实发工资总额 (元)',
-                data: [86858, 95377],
-                backgroundColor: ['#95a5a6', '#e74c3c'], // 红色标记异常
-                barPercentage: 0.6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: '异常：打杂的工资比厨师高 (人数均为17人)' }
+        // 初始化图表
+        // 1. 营收对比图
+        const ctxRev = document.getElementById('revenueChart').getContext('2d');
+        new Chart(ctxRev, {
+            type: 'bar',
+            data: {
+                labels: ['汤臣店 (Total)', '泽云店 (Total)'],
+                datasets: [{
+                    label: '9月营业额',
+                    data: [297412, 1173820],
+                    backgroundColor: '#bdc3c7',
+                    borderRadius: 5
+                }, {
+                    label: '10月营业额',
+                    data: [486540, 2838497],
+                    backgroundColor: '#3498db',
+                    borderRadius: 5
+                }]
             },
-            scales: {
-                y: { beginAtZero: true }
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
             }
-        }
-    });
+        });
 
-    // 图表2：营收趋势
-    new Chart(document.getElementById('revenueTrendChart'), {
-        type: 'line',
-        data: {
-            labels: ['9月', '10月'],
-            datasets: [{
-                label: '汤臣店',
-                data: [297412, 486540],
-                borderColor: '#3498db',
-                tension: 0.4
-            }, {
-                label: '泽云店',
-                data: [1173820, 2838497],
-                borderColor: '#2ecc71',
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: '10月爆发式增长 (需警惕11月回落)' }
+        // 2. 泽云收入结构饼图
+        const ctxStruct = document.getElementById('structureChart').getContext('2d');
+        new Chart(ctxStruct, {
+            type: 'doughnut',
+            data: {
+                labels: ['宴会 (Banquet)', '客房 (Room)', '餐饮 (F&B)', '其他'],
+                datasets: [{
+                    data: [1280000, 650000, 850000, 58000], // 估算值基于比例
+                    backgroundColor: ['#2ecc71', '#3498db', '#9b59b6', '#95a5a6']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'right' } }
             }
-        }
-    });
-</script>
+        });
 
+        // 3. 薪资倒挂图 (The Anomaly)
+        const ctxMismatch = document.getElementById('salaryMismatchChart').getContext('2d');
+        new Chart(ctxMismatch, {
+            type: 'bar',
+            data: {
+                labels: ['后厨部 (核心技术岗)', '后勤部 (辅助打杂岗)'],
+                datasets: [{
+                    label: '人数',
+                    data: [17, 17],
+                    type: 'line',
+                    borderColor: '#333',
+                    yAxisID: 'y1'
+                }, {
+                    label: '10月实发工资 (元)',
+                    data: [86858, 95377],
+                    backgroundColor: ['#95a5a6', '#e74c3c'], // 红色标记异常
+                    yAxisID: 'y'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { position: 'left', title: {display: true, text: '工资金额'} },
+                    y1: { position: 'right', min: 0, max: 20, title: {display: true, text: '人数'} }
+                }
+            }
+        });
+
+        // 4. 外援费用分布
+        const ctxOut = document.getElementById('outsourcingChart').getContext('2d');
+        new Chart(ctxOut, {
+            type: 'pie',
+            data: {
+                labels: ['明确归属: 宴会外援', '模糊归属: 后厨/杂项外援'],
+                datasets: [{
+                    data: [47960, 38773],
+                    backgroundColor: ['#2ecc71', '#e74c3c']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { 
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: '总外援费 86,733元 分布' }
+                }
+            }
+        });
+
+    </script>
 </body>
 </html>
