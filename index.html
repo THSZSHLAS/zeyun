@@ -3,438 +3,347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2025年10月 经营数据深度审计系统</title>
-    <!-- 引入 Chart.js 用于图表绘制 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 引入 FontAwesome 用于图标 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>手势控制 3D 粒子系统</title>
     <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #34495e;
-            --accent: #3498db;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --success: #27ae60;
-            --bg: #f4f6f9;
-        }
-
-        body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background-color: var(--bg);
-            margin: 0;
-            padding: 0;
-            color: #333;
-            overflow-x: hidden;
-        }
-
-        /* 导航栏 */
-        .navbar {
-            background-color: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .navbar h1 {
-            margin: 0;
-            font-size: 20px;
-            color: var(--primary);
-        }
-
-        .steps {
-            display: flex;
-            gap: 20px;
-        }
-
-        .step-indicator {
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            color: #999;
-            background: #eee;
-            cursor: default;
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #video-input { position: absolute; top: 10px; left: 10px; width: 160px; height: 120px; transform: scaleX(-1); border-radius: 8px; opacity: 0.7; z-index: 2; border: 2px solid rgba(255,255,255,0.2); }
+        
+        /* 全屏按钮 */
+        #fs-btn {
+            position: absolute; bottom: 20px; right: 20px; z-index: 10;
+            background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 20px; border-radius: 30px; cursor: pointer; backdrop-filter: blur(5px);
             transition: all 0.3s;
         }
+        #fs-btn:hover { background: white; color: black; }
 
-        .step-indicator.active {
-            background: var(--accent);
-            color: white;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.4);
+        /* 加载提示 */
+        #loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-size: 24px; z-index: 20; pointer-events: none;
+            text-shadow: 0 0 10px rgba(0,255,255,0.8);
         }
-
-        /* 页面容器 */
-        .page {
-            display: none;
-            padding: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 卡片样式 */
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
-
-        /* 统计数字 */
-        .stat-box { text-align: center; }
-        .stat-num { font-size: 32px; font-weight: bold; margin: 10px 0; color: var(--primary); }
-        .stat-label { color: #7f8c8d; font-size: 14px; }
-        .trend-up { color: var(--success); font-size: 0.8em; }
-        .trend-down { color: var(--danger); font-size: 0.8em; }
-
-        /* 按钮 */
-        .btn {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-            display: block;
-            margin: 30px auto;
-            width: fit-content;
-        }
-        .btn:hover { background: #2980b9; }
-        .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
-
-        /* 警示框 */
-        .alert-box {
-            border-left: 5px solid var(--danger);
-            background: #fff5f5;
-            padding: 20px;
-            border-radius: 0 8px 8px 0;
-            margin-bottom: 20px;
-        }
-        .alert-title { color: var(--danger); font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
-
-        /* 报告样式 */
-        .report-section {
-            border-left: 3px solid #ddd;
-            padding-left: 20px;
-            margin-bottom: 30px;
-        }
-        .report-section h3 { color: var(--secondary); margin-top: 0; }
-        .report-path {
-            background: #eef2f7;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 13px;
-            color: #555;
-            margin-bottom: 15px;
-        }
-        
-        .typewriter p {
-            border-right: .15em solid orange;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
     </style>
 </head>
 <body>
 
-    <!-- 顶部导航 -->
-    <div class="navbar">
-        <h1>🔍 经营数据审计系统 <span style="font-size:0.6em; color:#999;">V2.0</span></h1>
-        <div class="steps">
-            <div id="step1" class="step-indicator active">1. 数据重构</div>
-            <div id="step2" class="step-indicator">2. 交叉侦查</div>
-            <div id="step3" class="step-indicator">3. 洞察报告</div>
-        </div>
-    </div>
+    <video id="video-input" playsinline></video>
+    
+    <div id="canvas-container"></div>
+    
+    <button id="fs-btn">⛶ 全屏模式</button>
+    
+    <div id="loader">正在启动摄像头与模型...</div>
 
-    <!-- 第一页：数据重构 (The Surface) -->
-    <div id="page1" class="page active">
-        <div class="card" style="text-align: center; border-top: 5px solid var(--success);">
-            <h2>📊 10月经营全景 (表面数据)</h2>
-            <p>基于您提供的10张原始报表整理，表面看是一份极其漂亮的成绩单。</p>
-        </div>
-
-        <div class="grid-3">
-            <div class="card stat-box">
-                <div class="stat-label">10月总营收</div>
-                <div class="stat-num">3,325,037 元</div>
-                <div class="trend-up">▲ 环比增长 126%</div>
-            </div>
-            <div class="card stat-box">
-                <div class="stat-label">工资总额 (含外援)</div>
-                <div class="stat-num">501,817 元</div>
-                <div class="trend-up">占比仅 15.09% (优秀)</div>
-            </div>
-            <div class="card stat-box">
-                <div class="stat-label">核心增长引擎</div>
-                <div class="stat-num">泽云宴会</div>
-                <div class="trend-up">单部门贡献 128万</div>
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <div class="card">
-                <h3>📈 营收趋势对比 (9月 vs 10月)</h3>
-                <canvas id="revenueChart"></canvas>
-            </div>
-            <div class="card">
-                <h3>💰 泽云店收入结构</h3>
-                <canvas id="structureChart"></canvas>
-            </div>
-        </div>
-
-        <button class="btn" onclick="goToPage(2)">数据看起来很完美，深入挖掘 ➡️</button>
-    </div>
-
-    <!-- 第二页：交叉侦查 (The Interrogation) -->
-    <div id="page2" class="page">
-        <div class="card" style="border-top: 5px solid var(--danger);">
-            <h2>🕵️ 交叉侦查：数据里的“隐秘角落”</h2>
-            <p>通过对比《工资表》、《部门汇总表》与《日报表》，我们发现了记录上的偷懒和结构上的倒挂。</p>
-        </div>
-
-        <!-- 疑点 1 -->
-        <div class="card">
-            <div class="alert-box">
-                <div class="alert-title"><i class="fas fa-exclamation-triangle"></i> 疑点一：薪资倒挂 (管理层可能未察觉)</div>
-                <p><strong>数据来源交叉：</strong> 图2 (部门工资) vs 行业常识</p>
-                <p>泽云店后厨（核心技术岗）工资总额竟低于后勤（洗碗/打扫）。这通常意味着后勤编制严重冗余，或者有人在吃空饷。</p>
-            </div>
-            <div style="height: 300px;">
-                <canvas id="salaryMismatchChart"></canvas>
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <!-- 疑点 2 -->
-            <div class="card">
-                <div class="alert-box" style="border-left-color: var(--warning);">
-                    <div class="alert-title" style="color: var(--warning);"><i class="fas fa-search-dollar"></i> 疑点二：谁在拿“外援费”？</div>
-                    <p><strong>数据来源交叉：</strong> 图1 (总表) vs 图4 (宴会表) vs 图8 (餐饮成本)</p>
-                    <p>总表显示外援8.6万，宴会只认领了4.7万。剩下近4万元去了哪里？数据显示被“后厨”和“零点”分摊了。</p>
-                    <hr>
-                    <p style="font-size: 0.9em; color: #666;">
-                        <strong>分析师旁白：</strong> 记录者可能图省事，把所有无法归类的临时工支出都扔进了“后厨外援”这个大筐里，导致后厨成本看起来虚高，且难以审计。
-                    </p>
-                </div>
-                <canvas id="outsourcingChart"></canvas>
-            </div>
-
-            <!-- 疑点 3 -->
-            <div class="card">
-                <div class="alert-box" style="border-left-color: var(--accent);">
-                    <div class="alert-title" style="color: var(--accent);"><i class="fas fa-balance-scale"></i> 疑点三：激励机制失效</div>
-                    <p><strong>数据来源交叉：</strong> 图2 (工资明细)</p>
-                    <p>在一个销售额暴涨的月份，<strong>全勤奖 (8,217元)</strong> 发的比 <strong>销售提成 (7,093元)</strong> 还多。</p>
-                </div>
-                <div style="padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                    <h3>💡 这说明了什么？</h3>
-                    <p>员工只要“按时打卡”拿到的钱，比“拼命卖宴会”拿到的钱还多。这解释了为什么淡季业绩会断崖式下跌——因为没有足够的动力去主动获客。</p>
-                </div>
-            </div>
-        </div>
-
-        <button class="btn" onclick="goToPage(3)">查看分析师最终结论 ➡️</button>
-    </div>
-
-    <!-- 第三页：洞察报告 (The Verdict) -->
-    <div id="page3" class="page">
-        <div class="card" style="border-top: 5px solid var(--primary);">
-            <h2>📑 从数据分析出发的总结报告</h2>
-            <p>以下是我对这组数据的深度解读与推理路径（单从我看到的数据出发）。</p>
-        </div>
-
-        <div class="grid-2">
-            <!-- 左侧：推理路径 -->
-            <div class="card">
-                <h3>🧠 我的推理路径 (Logic Chain)</h3>
-                
-                <div class="report-section">
-                    <div class="report-path">> 收到数据：10张杂乱图片</div>
-                    <p>第一眼看到的是“全线飘红”，10月总营收翻倍。普通财务会说：“干得漂亮”。</p>
-                </div>
-
-                <div class="report-section">
-                    <div class="report-path">> 挖掘动作：计算人效比 (Per Capita Efficiency)</div>
-                    <p>我计算了各部门的人均产出。汤臣客房人效极高，但汤臣餐饮人效接近于零（2个人一个月做2.8万，还没扣除食材成本，几乎是负资产）。</p>
-                </div>
-
-                <div class="report-section">
-                    <div class="report-path">> 挖掘动作：异常值检测 (Anomaly Detection)</div>
-                    <p>我检查了工资结构。发现泽云后勤（洗碗/保洁）的工资总额竟然超过了厨师团队。这在餐饮业是不合逻辑的（Abnormal）。推测是管理层对“编制”没有控制，或者设备落后导致单纯堆砌人力。</p>
-                </div>
-
-                <div class="report-section">
-                    <div class="report-path">> 挖掘动作：记录一致性检查 (Integrity Check)</div>
-                    <p>发现文字总结中说“客房计件下降”，但数据表里明明是上升。这说明汇报人是直接复制粘贴了上个月的模板，或者根本没看数据。这种“图省事”的习惯也体现在外援费用的记录上。</p>
-                </div>
-            </div>
-
-            <!-- 右侧：建议与结论 -->
-            <div class="card" style="background-color: #fcfcfc;">
-                <h3>🚀 关键行动建议 (Action Plan)</h3>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: var(--danger);">1. 立即审计“后勤部”</h4>
-                    <p style="font-size: 14px; color: #555;">不要只看总数。去查泽云店后勤那17个人的排班表。为什么洗碗扫地需要发9.5万工资？引入洗碗机或外包保洁，至少能砍掉30%成本。</p>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: var(--warning);">2. 重构“汤臣餐饮”</h4>
-                    <p style="font-size: 14px; color: #555;">该部门是典型的“僵尸部门”。数据告诉你，它不仅不赚钱，还在吞噬客房赚来的利润。建议：要么裁撤改为只做早餐，要么利用住店客流强制做夜宵转化。</p>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: var(--accent);">3. 修正“懒惰记录”习惯</h4>
-                    <p style="font-size: 14px; color: #555;">外援费用必须建立“一人一单”的即时申报制度。现在的记录方式是一笔糊涂账，以后如果业绩下滑，这就是最大的止损盲区。</p>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: var(--success);">4. 激活销售动力</h4>
-                    <p style="font-size: 14px; color: #555;">削减全勤奖比例，将这部分预算加到销售提成里。让员工觉得“多拉一个客户”比“准点打卡”更划算。</p>
-                </div>
-            </div>
-        </div>
-        
-        <button class="btn btn-outline" onclick="goToPage(1)">🔄 返回数据大屏</button>
-    </div>
-
-    <script>
-        // 页面切换逻辑
-        function goToPage(pageId) {
-            // 隐藏所有页面
-            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-            document.querySelectorAll('.step-indicator').forEach(step => step.classList.remove('active'));
-
-            // 显示目标页面
-            document.getElementById('page' + pageId).classList.add('active');
-            
-            // 更新进度条
-            for(let i = 1; i <= pageId; i++) {
-                document.getElementById('step' + i).classList.add('active');
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@mediapipe/hands": "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js",
+                "@mediapipe/camera_utils": "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js",
+                "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.19.1/dist/lil-gui.esm.min.js"
             }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import GUI from 'lil-gui';
+        // MediaPipe 通过全局脚本加载，但在 module 中我们需要手动处理一下或使用全局变量
+        // 为了方便，这里我们假设 MediaPipe 脚本会在后面动态加载，或者我们直接使用全局对象
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import GUI from 'lil-gui';
+
+        // --- 配置项 ---
+        const config = {
+            particleCount: 5000,
+            particleSize: 0.15,
+            color: '#ff0055',
+            shape: 'heart', // heart, sphere, spiral, fireworks
+            handInteraction: true,
+            sensitivity: 2.0 // 手势敏感度
+        };
+
+        // --- Three.js 初始化 ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        // 添加一点迷雾增强深度感
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 20;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.0;
+
+        // --- 粒子系统核心 ---
+        let geometry, material, points;
+        const positions = [];       // 当前位置
+        const targetPositions = []; // 目标形状位置
+        
+        // 初始化几何体数据
+        function initParticles() {
+            if(points) scene.remove(points);
+
+            const posArray = new Float32Array(config.particleCount * 3);
             
-            // 滚动到顶部
-            window.scrollTo(0, 0);
+            for(let i=0; i<config.particleCount; i++) {
+                // 初始随机分布
+                positions[i*3] = (Math.random() - 0.5) * 50;
+                positions[i*3+1] = (Math.random() - 0.5) * 50;
+                positions[i*3+2] = (Math.random() - 0.5) * 50;
+
+                posArray[i*3] = positions[i*3];
+                posArray[i*3+1] = positions[i*3+1];
+                posArray[i*3+2] = positions[i*3+2];
+            }
+
+            geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+            material = new THREE.PointsMaterial({
+                size: config.particleSize,
+                color: config.color,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+            
+            // 立即计算一次目标形状
+            calculateTargetShape(config.shape);
         }
 
-        // 初始化图表
-        // 1. 营收对比图
-        const ctxRev = document.getElementById('revenueChart').getContext('2d');
-        new Chart(ctxRev, {
-            type: 'bar',
-            data: {
-                labels: ['汤臣店 (Total)', '泽云店 (Total)'],
-                datasets: [{
-                    label: '9月营业额',
-                    data: [297412, 1173820],
-                    backgroundColor: '#bdc3c7',
-                    borderRadius: 5
-                }, {
-                    label: '10月营业额',
-                    data: [486540, 2838497],
-                    backgroundColor: '#3498db',
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
+        // --- 形状计算逻辑 ---
+        function calculateTargetShape(shapeType) {
+            targetPositions.length = 0; // 清空
 
-        // 2. 泽云收入结构饼图
-        const ctxStruct = document.getElementById('structureChart').getContext('2d');
-        new Chart(ctxStruct, {
-            type: 'doughnut',
-            data: {
-                labels: ['宴会 (Banquet)', '客房 (Room)', '餐饮 (F&B)', '其他'],
-                datasets: [{
-                    data: [1280000, 650000, 850000, 58000], // 估算值基于比例
-                    backgroundColor: ['#2ecc71', '#3498db', '#9b59b6', '#95a5a6']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'right' } }
-            }
-        });
+            for (let i = 0; i < config.particleCount; i++) {
+                let x, y, z;
 
-        // 3. 薪资倒挂图 (The Anomaly)
-        const ctxMismatch = document.getElementById('salaryMismatchChart').getContext('2d');
-        new Chart(ctxMismatch, {
-            type: 'bar',
-            data: {
-                labels: ['后厨部 (核心技术岗)', '后勤部 (辅助打杂岗)'],
-                datasets: [{
-                    label: '人数',
-                    data: [17, 17],
-                    type: 'line',
-                    borderColor: '#333',
-                    yAxisID: 'y1'
-                }, {
-                    label: '10月实发工资 (元)',
-                    data: [86858, 95377],
-                    backgroundColor: ['#95a5a6', '#e74c3c'], // 红色标记异常
-                    yAxisID: 'y'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { position: 'left', title: {display: true, text: '工资金额'} },
-                    y1: { position: 'right', min: 0, max: 20, title: {display: true, text: '人数'} }
+                if (shapeType === 'heart') {
+                    // 3D 爱心公式
+                    const phi = Math.random() * Math.PI * 2;
+                    const theta = Math.random() * Math.PI;
+                    // 使用参数方程的变体
+                    // 这里用一个简单的 2D 拉伸成 3D 的爱心
+                    const t = Math.random() * Math.PI * 2;
+                    x = 16 * Math.pow(Math.sin(t), 3);
+                    y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                    z = (Math.random() - 0.5) * 5; // 厚度
+                    
+                    // 稍微打散一点
+                    x *= 0.5; y *= 0.5; 
+                } 
+                else if (shapeType === 'sphere') {
+                    // 球体
+                    const r = 8;
+                    const phi = Math.acos(-1 + (2 * i) / config.particleCount);
+                    const theta = Math.sqrt(config.particleCount * Math.PI) * phi;
+                    x = r * Math.cos(theta) * Math.sin(phi);
+                    y = r * Math.sin(theta) * Math.sin(phi);
+                    z = r * Math.cos(phi);
+                } 
+                else if (shapeType === 'spiral') {
+                    // 螺旋 (替代不雅手势)
+                    const t = i / config.particleCount * 20;
+                    x = t * Math.cos(t * 5);
+                    z = t * Math.sin(t * 5);
+                    y = t * 2 - 10;
                 }
+                else if (shapeType === 'fireworks') {
+                    // 烟花 (随机爆炸球体)
+                    const r = 15 * Math.random();
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.random() * Math.PI;
+                    x = r * Math.sin(phi) * Math.cos(theta);
+                    y = r * Math.sin(phi) * Math.sin(theta);
+                    z = r * Math.cos(phi);
+                }
+
+                targetPositions.push(x, y, z);
             }
+        }
+
+        // --- MediaPipe 手势追踪 ---
+        const videoElement = document.getElementById('video-input');
+        let handDistanceScale = 1.0; // 默认缩放
+        let isHandDetected = false;
+
+        function onResults(results) {
+            document.getElementById('loader').style.display = 'none';
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                isHandDetected = true;
+                const hands = results.multiHandLandmarks;
+                
+                // 逻辑：如果检测到两只手，计算两手中心点的距离
+                if (hands.length === 2) {
+                    const hand1 = hands[0][9]; // 中指根部
+                    const hand2 = hands[1][9];
+                    
+                    // 计算屏幕归一化距离
+                    const dx = hand1.x - hand2.x;
+                    const dy = hand1.y - hand2.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // 映射距离到缩放系数 (距离越远，系数越大)
+                    // 原始距离大概在 0.1 到 0.8 之间
+                    let targetScale = 1.0 + (distance * config.sensitivity); 
+                    // 平滑过渡
+                    handDistanceScale += (targetScale - handDistanceScale) * 0.1;
+                    
+                } else if (hands.length === 1) {
+                    // 如果只有一只手，检测大拇指和食指张开程度
+                    const thumb = hands[0][4];
+                    const index = hands[0][8];
+                    const d = Math.sqrt(Math.pow(thumb.x - index.x, 2) + Math.pow(thumb.y - index.y, 2));
+                    
+                    let targetScale = 1.0 + (d * 5.0); // 单手张开系数
+                    handDistanceScale += (targetScale - handDistanceScale) * 0.1;
+                }
+            } else {
+                isHandDetected = false;
+                // 无手势时缓慢恢复默认大小
+                handDistanceScale += (1.0 - handDistanceScale) * 0.05;
+            }
+        }
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
 
-        // 4. 外援费用分布
-        const ctxOut = document.getElementById('outsourcingChart').getContext('2d');
-        new Chart(ctxOut, {
-            type: 'pie',
-            data: {
-                labels: ['明确归属: 宴会外援', '模糊归属: 后厨/杂项外援'],
-                datasets: [{
-                    data: [47960, 38773],
-                    backgroundColor: ['#2ecc71', '#e74c3c']
-                }]
+        hands.onResults(onResults);
+
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
             },
-            options: {
-                responsive: true,
-                plugins: { 
-                    legend: { position: 'bottom' },
-                    title: { display: true, text: '总外援费 86,733元 分布' }
+            width: 320,
+            height: 240
+        });
+        cameraUtils.start();
+
+        // --- UI 设置 ---
+        const gui = new GUI({ title: '控制面板' });
+        
+        gui.add(config, 'shape', ['heart', 'sphere', 'spiral', 'fireworks'])
+           .name('粒子形状')
+           .onChange(val => calculateTargetShape(val));
+           
+        gui.addColor(config, 'color')
+           .name('粒子颜色')
+           .onChange(val => material.color.set(val));
+
+        gui.add(config, 'particleSize', 0.01, 1.0)
+           .name('粒子大小')
+           .onChange(val => material.size = val);
+           
+        gui.add(config, 'sensitivity', 1.0, 10.0)
+           .name('手势敏感度');
+
+        // --- 动画循环 ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+            controls.update();
+
+            // 粒子位置更新 (Morphing 逻辑)
+            const positionsAttribute = geometry.attributes.position;
+            const currentPositions = positionsAttribute.array;
+
+            // 动态缩放基准
+            let scaleFactor = config.handInteraction ? handDistanceScale : 1.0;
+
+            for (let i = 0; i < config.particleCount; i++) {
+                const ix = i * 3;
+                const iy = i * 3 + 1;
+                const iz = i * 3 + 2;
+
+                // 获取目标位置并应用缩放
+                let tx = targetPositions[ix] * scaleFactor;
+                let ty = targetPositions[iy] * scaleFactor;
+                let tz = targetPositions[iz] * scaleFactor;
+
+                // 增加一些动态噪声 (呼吸感)
+                if (config.shape === 'fireworks') {
+                    // 烟花特殊逻辑：持续向外扩散
+                    tx += Math.sin(time * 2 + i) * 0.5;
+                } else {
+                    // 普通呼吸
+                    tx += Math.sin(time * 3 + i) * 0.05;
+                    ty += Math.cos(time * 2 + i) * 0.05;
                 }
+
+                // 线性插值 (Lerp) 实现平滑移动
+                // 0.05 是移动速度，越小越慢/平滑
+                currentPositions[ix] += (tx - currentPositions[ix]) * 0.08;
+                currentPositions[iy] += (ty - currentPositions[iy]) * 0.08;
+                currentPositions[iz] += (tz - currentPositions[iz]) * 0.08;
+            }
+
+            positionsAttribute.needsUpdate = true;
+            
+            // 颜色动态变化 (可选)
+            if (config.shape === 'fireworks') {
+                const hue = (time * 0.1) % 1;
+                material.color.setHSL(hue, 1, 0.5);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 初始化与事件 ---
+        initParticles();
+        animate();
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 全屏按钮
+        document.getElementById('fs-btn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.body.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                document.exitFullscreen();
             }
         });
 
