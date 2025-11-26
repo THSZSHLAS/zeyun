@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手势交互v1.2</title>
+    <title>手势交互1.4</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%); }
@@ -53,7 +53,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import GUI from 'lil-gui';
 
-        // 内部噪声类 (防止CORS错误)
+        // 内部噪声类
         class ImprovedNoise {
             constructor() {
                 const p = [151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
@@ -74,14 +74,17 @@
         const config = {
             mode: 'morph',
             shape: 'solidHeart',
-            color: '#ff0066',
-            particleCount: 8000,
-            particleSize: 0.12,
+            // color: '#ff0066', // 移除单色定义
+            particleCount: 16000, // 增加粒子数量到 16000
+            particleSize: 0.1, // 稍微调小一点点以适应高密度
             handSensitivity: 2.5,
             audioReactivity: false,
             autoRotate: true,
             clearTrail: () => { if(trailSystem) trailSystem.clear(); }
         };
+
+        // 定义霓虹色板 (玫红, 青蓝, 金黄, 纯白)
+        const colorPalette = [0xff0055, 0x00ddff, 0xffdd00, 0xffffff];
 
         let handData = { detected: false, distanceRaw: 0, distanceSmooth: 0, indexTipPos: new THREE.Vector3() };
         let audioContext, analyser, dataArray;
@@ -92,7 +95,7 @@
         scene.fog = new THREE.FogExp2(0x000000, 0.015);
 
         const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
-        camera.position.z = 25;
+        camera.position.z = 30; // 稍微拉远一点相机
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -104,7 +107,7 @@
         controls.dampingFactor = 0.05;
         controls.autoRotateSpeed = 0.5;
 
-        // --- 修复部分：粒子系统初始化 ---
+        // --- 粒子系统初始化 ---
         let mainPoints, mainGeometry, mainMaterial;
         const targetPositions = [];
         const noise = new ImprovedNoise();
@@ -113,25 +116,22 @@
             if (mainPoints) scene.remove(mainPoints);
             const posArray = new Float32Array(config.particleCount * 3);
             const colorsArray = new Float32Array(config.particleCount * 3);
-            const baseColor = new THREE.Color(config.color);
-            const tempHSL = { h: 0, s: 0, l: 0 }; // 临时对象存储HSL
+            const tempColor = new THREE.Color();
 
             for (let i = 0; i < config.particleCount; i++) {
-                const x = (Math.random()-0.5)*40;
-                const y = (Math.random()-0.5)*40;
-                const z = (Math.random()-0.5)*40;
+                // 初始位置分散开
+                const x = (Math.random()-0.5)*60;
+                const y = (Math.random()-0.5)*60;
+                const z = (Math.random()-0.5)*60;
                 posArray[i * 3] = x; posArray[i * 3 + 1] = y; posArray[i * 3 + 2] = z;
 
-                // --- 修复点：正确的 Three.js HSL 操作方式 ---
-                let c = baseColor.clone();
-                c.getHSL(tempHSL); // 获取
-                // 微调色相，确保在 0-1 之间
-                let newH = tempHSL.h + (Math.random() - 0.5) * 0.1;
-                c.setHSL(newH, tempHSL.s, tempHSL.l); // 设置回去
-
-                colorsArray[i * 3] = c.r; 
-                colorsArray[i * 3 + 1] = c.g; 
-                colorsArray[i * 3 + 2] = c.b;
+                // --- 炫彩逻辑：从色板中随机选取颜色 ---
+                const randomColorHex = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                tempColor.setHex(randomColorHex);
+                
+                colorsArray[i * 3] = tempColor.r; 
+                colorsArray[i * 3 + 1] = tempColor.g; 
+                colorsArray[i * 3 + 2] = tempColor.b;
             }
 
             mainGeometry = new THREE.BufferGeometry();
@@ -140,9 +140,9 @@
 
             mainMaterial = new THREE.PointsMaterial({
                 size: config.particleSize,
-                vertexColors: true,
+                vertexColors: true, // 启用顶点颜色
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.85,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
                 map: createParticleTexture()
@@ -159,7 +159,7 @@
             const ctx = canvas.getContext('2d');
             const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
             gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.4, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.3, 'rgba(255,255,255,0.9)');
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, 32, 32);
@@ -171,36 +171,51 @@
             let x, y, z;
             for (let i = 0; i < config.particleCount; i++) {
                 if (shapeType === 'solidHeart') {
-                    while (true) {
-                        x = (Math.random() - 0.5) * 30; y = (Math.random() - 0.5) * 30; z = (Math.random() - 0.5) * 15; 
-                        x /= 10; y /= 10; z /= 10;
-                        const a = x * x + (9/4) * y * y + z * z - 1;
-                        if (a * a * a - x * x * z * z * z - (9/80) * y * y * z * z * z < 0) {
-                            x *= 10; y *= 10; z *= 10; y += 3;
-                            break;
-                        }
-                    }
+                    // --- 全新的参数化爱心算法 ---
+                    const t = Math.random() * Math.PI * 2;
+                    // 使用 sqrt 确保在圆内均匀分布，而不是聚集在中心
+                    const r = Math.sqrt(Math.random()); 
+                    
+                    // 经典的 2D 爱心公式
+                    const x2d = 16 * Math.pow(Math.sin(t), 3);
+                    const y2d = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+
+                    // 应用半径缩放以填充内部，并整体缩小一点适应屏幕
+                    x = x2d * r * 0.8;
+                    y = y2d * r * 0.8;
+                    
+                    // 添加厚度 (Z轴)。边缘薄，中间厚。
+                    const thickness = 6 * (1 - r * 0.5); // 稍微调整厚度分布
+                    z = (Math.random() - 0.5) * thickness;
+
+                    // 稍微向上移动中心
+                    y += 5;
+
                 } else if (shapeType === 'sphere') {
-                    const r = 12 * Math.cbrt(Math.random());
+                    const r = 15 * Math.cbrt(Math.random()); // 稍微加大半径
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos(2 * Math.random() - 1);
                     x = r * Math.sin(phi) * Math.cos(theta); y = r * Math.sin(phi) * Math.sin(theta); z = r * Math.cos(phi);
                 } else if (shapeType === 'torusKnot') {
                     const t = (i / config.particleCount) * Math.PI * 2 * 3;
-                    const r = 8 + 3 * Math.cos(3 * t);
-                    x = r * Math.cos(2 * t); y = r * Math.sin(2 * t); z = 6 * Math.sin(3 * t);
-                    x += (Math.random()-0.5)*1.5; y += (Math.random()-0.5)*1.5; z += (Math.random()-0.5)*1.5;
+                    const r = 9 + 3 * Math.cos(3 * t); // 稍微加大
+                    x = r * Math.cos(2 * t); y = r * Math.sin(2 * t); z = 7 * Math.sin(3 * t);
+                    // 增加更多随机填充让它更扎实
+                    x += (Math.random()-0.5)*2.5; y += (Math.random()-0.5)*2.5; z += (Math.random()-0.5)*2.5;
                 } else if (shapeType === 'dna') {
-                    const t = (i / config.particleCount) * Math.PI * 10;
-                    const yPos = (i / config.particleCount - 0.5) * 30;
+                    const t = (i / config.particleCount) * Math.PI * 14; // 增加螺旋密度
+                    const yPos = (i / config.particleCount - 0.5) * 40; // 拉长
                     const offset = i % 2 === 0 ? 0 : Math.PI; 
-                    x = 6 * Math.cos(t + offset); z = 6 * Math.sin(t + offset); y = yPos;
-                    if (Math.random() > 0.8) { x *= Math.random(); z *= Math.random(); }
+                    const radius = 7;
+                    x = radius * Math.cos(t + offset); z = radius * Math.sin(t + offset); y = yPos;
+                    // 增加更多杂乱填充
+                    if (Math.random() > 0.7) { x *= Math.random()*1.5; z *= Math.random()*1.5; }
                 }
                 targetPositions.push(x, y, z);
             }
         }
 
+        // 画笔系统 (使用固定颜色，因为它是轨迹)
         const trailSystem = {
             maxParticles: 3000,
             geometry: null, material: null, points: null,
@@ -209,18 +224,15 @@
                 this.positions = new Float32Array(this.maxParticles * 3);
                 this.opacities = new Float32Array(this.maxParticles);
                 for(let i=0; i<this.maxParticles; i++) this.positions[i*3 + 1] = 9999;
-                
                 this.geometry = new THREE.BufferGeometry();
                 this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
                 this.geometry.setAttribute('opacityAttr', new THREE.BufferAttribute(this.opacities, 1));
-
                 this.material = new THREE.ShaderMaterial({
-                    uniforms: { color: { value: new THREE.Color(config.color) }, pointTexture: { value: createParticleTexture() } },
-                    vertexShader: `attribute float opacityAttr; varying float vOpacity; void main() { vOpacity = opacityAttr; vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 ); gl_PointSize = 15.0 * ( 1.0 / - mvPosition.z ) * vOpacity; gl_Position = projectionMatrix * mvPosition; }`,
+                    uniforms: { color: { value: new THREE.Color(0x00ddff) }, pointTexture: { value: createParticleTexture() } }, // 画笔默认青色
+                    vertexShader: `attribute float opacityAttr; varying float vOpacity; void main() { vOpacity = opacityAttr; vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 ); gl_PointSize = 20.0 * ( 1.0 / - mvPosition.z ) * vOpacity; gl_Position = projectionMatrix * mvPosition; }`,
                     fragmentShader: `uniform vec3 color; uniform sampler2D pointTexture; varying float vOpacity; void main() { if (vOpacity <= 0.01) discard; gl_FragColor = vec4( color, vOpacity ); gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); }`,
                     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
                 });
-
                 this.points = new THREE.Points(this.geometry, this.material);
                 scene.add(this.points);
                 this.points.visible = false;
@@ -278,8 +290,7 @@
                 const vec = new THREE.Vector3((indexTip2D.x * 2) - 1, -(indexTip2D.y * 2) + 1, 0.5);
                 vec.unproject(camera);
                 vec.sub(camera.position).normalize();
-                const distanceToPlane = -camera.position.z / vec.z; 
-                handData.indexTipPos.lerp(camera.position.clone().add(vec.multiplyScalar(20)), 0.2);
+                handData.indexTipPos.lerp(camera.position.clone().add(vec.multiplyScalar(25)), 0.2);
             } else {
                 handData.distanceRaw = 0;
             }
@@ -290,17 +301,15 @@
         hands.onResults(onHandsResults);
         const cameraUtils = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 320, height: 240 });
 
-        const gui = new GUI({ title: '控制终端 v3.1' });
+        const gui = new GUI({ title: '控制终端 v4.0' });
         gui.add(config, 'mode', { '手势变形 (Morph)': 'morph', '虚空画笔 (Draw)': 'draw' }).name('交互模式').onChange(mode => {
                mainPoints.visible = (mode === 'morph');
                trailSystem.points.visible = (mode === 'draw');
                if (mode === 'draw') trailSystem.clear();
         });
-        const f1 = gui.addFolder('变形').close();
-        f1.add(config, 'shape', { '实心爱心': 'solidHeart', '环面结': 'torusKnot', 'DNA': 'dna', '球体': 'sphere' }).onChange(v => calculateTargetShape(v));
-        f1.addColor(config, 'color').onChange(v => {
-             const c = new THREE.Color(v); mainMaterial.color.set(c); trailSystem.material.uniforms.color.value.set(c); initMainParticles();
-        });
+        const f1 = gui.addFolder('变形设置 (多色)').close();
+        f1.add(config, 'shape', { '标准爱心': 'solidHeart', '环面结': 'torusKnot', 'DNA': 'dna', '球体': 'sphere' }).onChange(v => calculateTargetShape(v));
+        // 移除了单色选择器，因为现在是多色的
         f1.add(config, 'audioReactivity').name('🎵 音频跳动').onChange(v => { if (v && !audioContext) setupAudio(); });
         gui.add(config, 'clearTrail').name('清除笔迹');
         gui.close();
@@ -333,16 +342,18 @@
                     let tz = targetPositions[iz] * baseScale * audioScaleBump;
 
                     const noiseIntensity = 0.3 + audioLevelSmooth * 1.5; 
-                    tx += noise.noise(positions[ix]*0.05, positions[iy]*0.05, positions[iz]*0.05 + time*0.5) * noiseIntensity;
-                    ty += noise.noise(positions[ix]*0.05 + 100, positions[iy]*0.05, positions[iz]*0.05 + time*0.5) * noiseIntensity;
-                    tz += noise.noise(positions[ix]*0.05 + 200, positions[iy]*0.05, positions[iz]*0.05 + time*0.5) * noiseIntensity;
+                    // 稍微降低了一点噪点速度，让运动更优雅
+                    tx += noise.noise(positions[ix]*0.05, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
+                    ty += noise.noise(positions[ix]*0.05 + 100, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
+                    tz += noise.noise(positions[ix]*0.05 + 200, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
                     
                     positions[ix] += (tx - positions[ix]) * 0.06;
                     positions[iy] += (ty - positions[iy]) * 0.06;
                     positions[iz] += (tz - positions[iz]) * 0.06;
                 }
                 mainGeometry.attributes.position.needsUpdate = true;
-                mainMaterial.size = config.particleSize * (1 + audioLevelSmooth * 1.5);
+                // 根据音频稍微调整粒子大小
+                mainMaterial.size = config.particleSize * (1 + audioLevelSmooth * 1.2);
             } else {
                 trailSystem.update(handData.indexTipPos, handData.detected);
             }
