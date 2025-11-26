@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手势交互1.4</title>
+    <title>粒子_v1.6</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; }
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%); }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: radial-gradient(circle at center, #111 0%, #000 100%); }
         
         #video-input { position: absolute; bottom: 10px; left: 10px; width: 120px; height: 90px; transform: scaleX(-1); border-radius: 8px; opacity: 0.5; z-index: 2; border: 1px solid rgba(255,255,255,0.2); pointer-events: none; }
         #video-input.active { opacity: 0.9; }
@@ -32,7 +32,7 @@
     <video id="video-input" playsinline></video>
     <div id="canvas-container"></div>
     <button id="fs-btn">⛶ 全屏沉浸</button>
-    <div id="loader">正在加载视觉核心...<br><span style="font-size:14px; opacity:0.7;">首次运行请允许摄像头/麦克风权限</span></div>
+    <div id="loader">正在加载核心系统...<br><span style="font-size:14px; opacity:0.7;">首次运行请允许摄像头/麦克风权限</span></div>
 
     <script type="importmap">
         {
@@ -74,16 +74,14 @@
         const config = {
             mode: 'morph',
             shape: 'solidHeart',
-            // color: '#ff0066', // 移除单色定义
-            particleCount: 16000, // 增加粒子数量到 16000
-            particleSize: 0.1, // 稍微调小一点点以适应高密度
+            particleCount: 30000, 
+            particleSize: 0.06,   
             handSensitivity: 2.5,
             audioReactivity: false,
             autoRotate: true,
             clearTrail: () => { if(trailSystem) trailSystem.clear(); }
         };
 
-        // 定义霓虹色板 (玫红, 青蓝, 金黄, 纯白)
         const colorPalette = [0xff0055, 0x00ddff, 0xffdd00, 0xffffff];
 
         let handData = { detected: false, distanceRaw: 0, distanceSmooth: 0, indexTipPos: new THREE.Vector3() };
@@ -92,10 +90,10 @@
 
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.015);
+        scene.fog = new THREE.FogExp2(0x000000, 0.012);
 
         const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
-        camera.position.z = 30; // 稍微拉远一点相机
+        camera.position.z = 32;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -107,10 +105,47 @@
         controls.dampingFactor = 0.05;
         controls.autoRotateSpeed = 0.5;
 
-        // --- 粒子系统初始化 ---
+        // --- 手指光标 (指示器) ---
+        // 新增：一个跟随手指的小球，这样你就知道系统是否在追踪你了
+        const cursorGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff, opacity: 0.8, transparent: true });
+        const cursorMesh = new THREE.Mesh(cursorGeometry, cursorMaterial);
+        scene.add(cursorMesh);
+        cursorMesh.visible = false; // 初始隐藏
+
+        // --- 粒子系统 1: 主云团 (50k) ---
         let mainPoints, mainGeometry, mainMaterial;
         const targetPositions = [];
         const noise = new ImprovedNoise();
+
+        // 纹理 1：用于大片云团，很透明，为了叠加效果
+        function createCloudTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.15)'); // 关键：这里非常透明
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 纹理 2：用于画笔，很实，为了看清线条
+        function createBrushTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.8)'); // 关键：这里比较实
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
 
         function initMainParticles() {
             if (mainPoints) scene.remove(mainPoints);
@@ -119,19 +154,15 @@
             const tempColor = new THREE.Color();
 
             for (let i = 0; i < config.particleCount; i++) {
-                // 初始位置分散开
                 const x = (Math.random()-0.5)*60;
                 const y = (Math.random()-0.5)*60;
                 const z = (Math.random()-0.5)*60;
                 posArray[i * 3] = x; posArray[i * 3 + 1] = y; posArray[i * 3 + 2] = z;
 
-                // --- 炫彩逻辑：从色板中随机选取颜色 ---
                 const randomColorHex = colorPalette[Math.floor(Math.random() * colorPalette.length)];
                 tempColor.setHex(randomColorHex);
-                
-                colorsArray[i * 3] = tempColor.r; 
-                colorsArray[i * 3 + 1] = tempColor.g; 
-                colorsArray[i * 3 + 2] = tempColor.b;
+                tempColor.offsetHSL(0, 0, (Math.random()-0.5)*0.1); 
+                colorsArray[i * 3] = tempColor.r; colorsArray[i * 3 + 1] = tempColor.g; colorsArray[i * 3 + 2] = tempColor.b;
             }
 
             mainGeometry = new THREE.BufferGeometry();
@@ -140,12 +171,12 @@
 
             mainMaterial = new THREE.PointsMaterial({
                 size: config.particleSize,
-                vertexColors: true, // 启用顶点颜色
+                vertexColors: true,
                 transparent: true,
-                opacity: 0.85,
+                opacity: 0.9,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
-                map: createParticleTexture()
+                map: createCloudTexture() // 使用云团纹理
             });
 
             mainPoints = new THREE.Points(mainGeometry, mainMaterial);
@@ -153,93 +184,89 @@
             calculateTargetShape(config.shape);
         }
         
-        function createParticleTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 32; canvas.height = 32;
-            const ctx = canvas.getContext('2d');
-            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.3, 'rgba(255,255,255,0.9)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 32, 32);
-            return new THREE.CanvasTexture(canvas);
-        }
-
         function calculateTargetShape(shapeType) {
             targetPositions.length = 0;
             let x, y, z;
             for (let i = 0; i < config.particleCount; i++) {
                 if (shapeType === 'solidHeart') {
-                    // --- 全新的参数化爱心算法 ---
                     const t = Math.random() * Math.PI * 2;
-                    // 使用 sqrt 确保在圆内均匀分布，而不是聚集在中心
                     const r = Math.sqrt(Math.random()); 
-                    
-                    // 经典的 2D 爱心公式
                     const x2d = 16 * Math.pow(Math.sin(t), 3);
                     const y2d = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-
-                    // 应用半径缩放以填充内部，并整体缩小一点适应屏幕
-                    x = x2d * r * 0.8;
-                    y = y2d * r * 0.8;
-                    
-                    // 添加厚度 (Z轴)。边缘薄，中间厚。
-                    const thickness = 6 * (1 - r * 0.5); // 稍微调整厚度分布
+                    x = x2d * r * 0.8; y = y2d * r * 0.8;
+                    const thickness = 6 * (1 - r * 0.5); 
                     z = (Math.random() - 0.5) * thickness;
-
-                    // 稍微向上移动中心
                     y += 5;
-
                 } else if (shapeType === 'sphere') {
-                    const r = 15 * Math.cbrt(Math.random()); // 稍微加大半径
+                    const r = 16 * Math.cbrt(Math.random()); 
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos(2 * Math.random() - 1);
                     x = r * Math.sin(phi) * Math.cos(theta); y = r * Math.sin(phi) * Math.sin(theta); z = r * Math.cos(phi);
                 } else if (shapeType === 'torusKnot') {
                     const t = (i / config.particleCount) * Math.PI * 2 * 3;
-                    const r = 9 + 3 * Math.cos(3 * t); // 稍微加大
+                    const r = 9 + 3 * Math.cos(3 * t); 
                     x = r * Math.cos(2 * t); y = r * Math.sin(2 * t); z = 7 * Math.sin(3 * t);
-                    // 增加更多随机填充让它更扎实
-                    x += (Math.random()-0.5)*2.5; y += (Math.random()-0.5)*2.5; z += (Math.random()-0.5)*2.5;
+                    x += (Math.random()-0.5)*3.0; y += (Math.random()-0.5)*3.0; z += (Math.random()-0.5)*3.0;
                 } else if (shapeType === 'dna') {
-                    const t = (i / config.particleCount) * Math.PI * 14; // 增加螺旋密度
-                    const yPos = (i / config.particleCount - 0.5) * 40; // 拉长
+                    const t = (i / config.particleCount) * Math.PI * 18; 
+                    const yPos = (i / config.particleCount - 0.5) * 45; 
                     const offset = i % 2 === 0 ? 0 : Math.PI; 
                     const radius = 7;
                     x = radius * Math.cos(t + offset); z = radius * Math.sin(t + offset); y = yPos;
-                    // 增加更多杂乱填充
-                    if (Math.random() > 0.7) { x *= Math.random()*1.5; z *= Math.random()*1.5; }
+                    if (Math.random() > 0.6) { x *= Math.random()*1.8; z *= Math.random()*1.8; }
                 }
                 targetPositions.push(x, y, z);
             }
         }
 
-        // 画笔系统 (使用固定颜色，因为它是轨迹)
+        // --- 粒子系统 2: 画笔轨迹 (Trail) ---
         const trailSystem = {
-            maxParticles: 3000,
+            maxParticles: 5000, // 稍微增加一点画笔长度
             geometry: null, material: null, points: null,
             positions: null, opacities: null, headIndex: 0,
             init: function() {
                 this.positions = new Float32Array(this.maxParticles * 3);
                 this.opacities = new Float32Array(this.maxParticles);
                 for(let i=0; i<this.maxParticles; i++) this.positions[i*3 + 1] = 9999;
+                
                 this.geometry = new THREE.BufferGeometry();
                 this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
                 this.geometry.setAttribute('opacityAttr', new THREE.BufferAttribute(this.opacities, 1));
+
                 this.material = new THREE.ShaderMaterial({
-                    uniforms: { color: { value: new THREE.Color(0x00ddff) }, pointTexture: { value: createParticleTexture() } }, // 画笔默认青色
-                    vertexShader: `attribute float opacityAttr; varying float vOpacity; void main() { vOpacity = opacityAttr; vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 ); gl_PointSize = 20.0 * ( 1.0 / - mvPosition.z ) * vOpacity; gl_Position = projectionMatrix * mvPosition; }`,
-                    fragmentShader: `uniform vec3 color; uniform sampler2D pointTexture; varying float vOpacity; void main() { if (vOpacity <= 0.01) discard; gl_FragColor = vec4( color, vOpacity ); gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); }`,
+                    uniforms: { 
+                        color: { value: new THREE.Color(0x00ffff) }, // 青色高亮
+                        pointTexture: { value: createBrushTexture() } // 修复：使用更实的画笔纹理
+                    },
+                    vertexShader: `
+                        attribute float opacityAttr; varying float vOpacity; 
+                        void main() { 
+                            vOpacity = opacityAttr; 
+                            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 ); 
+                            // 增大画笔粒子的尺寸
+                            gl_PointSize = 40.0 * ( 1.0 / - mvPosition.z ) * vOpacity; 
+                            gl_Position = projectionMatrix * mvPosition; 
+                        }`,
+                    fragmentShader: `
+                        uniform vec3 color; uniform sampler2D pointTexture; varying float vOpacity; 
+                        void main() { 
+                            if (vOpacity <= 0.05) discard; 
+                            gl_FragColor = vec4( color, vOpacity ); 
+                            gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); 
+                        }`,
                     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
                 });
+
                 this.points = new THREE.Points(this.geometry, this.material);
                 scene.add(this.points);
                 this.points.visible = false;
             },
             update: function(targetPos, isDrawing) {
                 if (!this.points.visible) return;
-                for (let i = 0; i < this.maxParticles; i++) this.opacities[i] *= 0.96;
+                
+                // 衰减
+                for (let i = 0; i < this.maxParticles; i++) this.opacities[i] *= 0.95; // 拖尾更长一点
+
                 if (isDrawing && targetPos) {
                     this.headIndex = (this.headIndex + 1) % this.maxParticles;
                     const idx = this.headIndex * 3;
@@ -274,8 +301,12 @@
             document.getElementById('loader').style.display = 'none';
             videoElement.classList.add('active');
             handData.detected = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+            
             if (handData.detected) {
                 const hands = results.multiHandLandmarks;
+                cursorMesh.visible = true; // 显示光标
+
+                // 距离计算
                 let newDistance = 0;
                 if (hands.length === 2) {
                     const h1 = hands[0][0]; const h2 = hands[1][0];
@@ -286,13 +317,22 @@
                 }
                 handData.distanceRaw = Math.max(0, (newDistance - 0.1) * config.handSensitivity);
 
+                // 食指位置计算
                 const indexTip2D = hands[0][8];
                 const vec = new THREE.Vector3((indexTip2D.x * 2) - 1, -(indexTip2D.y * 2) + 1, 0.5);
                 vec.unproject(camera);
                 vec.sub(camera.position).normalize();
-                handData.indexTipPos.lerp(camera.position.clone().add(vec.multiplyScalar(25)), 0.2);
+                
+                // 距离相机 25 的位置进行绘画
+                const targetPos = camera.position.clone().add(vec.multiplyScalar(25));
+                
+                // 平滑插值
+                handData.indexTipPos.lerp(targetPos, 0.3);
+                cursorMesh.position.copy(handData.indexTipPos);
+
             } else {
                 handData.distanceRaw = 0;
+                cursorMesh.visible = false; // 隐藏光标
             }
         }
 
@@ -301,7 +341,7 @@
         hands.onResults(onHandsResults);
         const cameraUtils = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 320, height: 240 });
 
-        const gui = new GUI({ title: '控制终端 v4.0' });
+        const gui = new GUI({ title: '控制终端 v6.0' });
         gui.add(config, 'mode', { '手势变形 (Morph)': 'morph', '虚空画笔 (Draw)': 'draw' }).name('交互模式').onChange(mode => {
                mainPoints.visible = (mode === 'morph');
                trailSystem.points.visible = (mode === 'draw');
@@ -309,7 +349,6 @@
         });
         const f1 = gui.addFolder('变形设置 (多色)').close();
         f1.add(config, 'shape', { '标准爱心': 'solidHeart', '环面结': 'torusKnot', 'DNA': 'dna', '球体': 'sphere' }).onChange(v => calculateTargetShape(v));
-        // 移除了单色选择器，因为现在是多色的
         f1.add(config, 'audioReactivity').name('🎵 音频跳动').onChange(v => { if (v && !audioContext) setupAudio(); });
         gui.add(config, 'clearTrail').name('清除笔迹');
         gui.close();
@@ -342,19 +381,18 @@
                     let tz = targetPositions[iz] * baseScale * audioScaleBump;
 
                     const noiseIntensity = 0.3 + audioLevelSmooth * 1.5; 
-                    // 稍微降低了一点噪点速度，让运动更优雅
-                    tx += noise.noise(positions[ix]*0.05, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
-                    ty += noise.noise(positions[ix]*0.05 + 100, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
-                    tz += noise.noise(positions[ix]*0.05 + 200, positions[iy]*0.05, positions[iz]*0.05 + time*0.3) * noiseIntensity;
+                    tx += noise.noise(positions[ix]*0.06, positions[iy]*0.06, positions[iz]*0.06 + time*0.4) * noiseIntensity;
+                    ty += noise.noise(positions[ix]*0.06 + 100, positions[iy]*0.06, positions[iz]*0.06 + time*0.4) * noiseIntensity;
+                    tz += noise.noise(positions[ix]*0.06 + 200, positions[iy]*0.06, positions[iz]*0.06 + time*0.4) * noiseIntensity;
                     
                     positions[ix] += (tx - positions[ix]) * 0.06;
                     positions[iy] += (ty - positions[iy]) * 0.06;
                     positions[iz] += (tz - positions[iz]) * 0.06;
                 }
                 mainGeometry.attributes.position.needsUpdate = true;
-                // 根据音频稍微调整粒子大小
                 mainMaterial.size = config.particleSize * (1 + audioLevelSmooth * 1.2);
             } else {
+                // 画笔模式
                 trailSystem.update(handData.indexTipPos, handData.detected);
             }
             renderer.render(scene, camera);
