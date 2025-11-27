@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全息晶体 v13</title>
+    <title>HOLO-SYSTEM v14 [FIXED]</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020202; font-family: 'Courier New', monospace; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
@@ -11,50 +11,52 @@
         /* 摄像头预览 */
         #video-input { 
             position: absolute; bottom: 20px; left: 20px; width: 160px; height: 120px; 
-            transform: scaleX(-1); opacity: 0.25; z-index: 2; 
+            transform: scaleX(-1); opacity: 0.3; z-index: 2; 
             border: 2px solid #4facfe; border-radius: 4px;
             pointer-events: none; mix-blend-mode: screen;
-            box-shadow: 0 0 15px rgba(79, 172, 254, 0.4);
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
         }
         
-        /* 顶部 HUD */
-        #hud-top {
-            position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 5;
+        /* HUD 界面 */
+        #hud {
+            position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none;
         }
-        .hud-text {
-            color: #4facfe; font-size: 14px; letter-spacing: 4px; text-transform: uppercase;
-            text-shadow: 0 0 10px rgba(79, 172, 254, 0.8); background: rgba(0,0,0,0.5);
-            padding: 5px 15px; border: 1px solid rgba(79, 172, 254, 0.3); display: inline-block;
+        .hud-line {
+            color: #4facfe; font-size: 14px; letter-spacing: 2px; margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(79, 172, 254, 0.8); background: rgba(0,0,0,0.6);
+            padding: 4px 10px; border-left: 3px solid #4facfe; display: inline-block;
         }
 
         #loader {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: #fff; font-size: 14px; z-index: 20; pointer-events: none;
             letter-spacing: 4px; text-transform: uppercase; border: 1px solid #4facfe;
-            padding: 15px 30px; background: rgba(0,0,0,0.8);
-            box-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
+            padding: 20px 40px; background: rgba(0,5,10,0.9);
+            box-shadow: 0 0 30px rgba(79, 172, 254, 0.4);
         }
 
-        /* GUI 定制 */
+        /* GUI 修复 */
         .lil-gui { 
-            --background-color: rgba(5, 8, 15, 0.9); 
-            --text-color: #eee; 
-            --title-background-color: #0b1a2f;
-            --widget-color: #222;
+            --background-color: rgba(2, 4, 8, 0.9); 
+            --text-color: #aaddff; 
+            --title-background-color: #051020;
+            --widget-color: #1a3050;
             --focus-color: #4facfe;
-            --width: 240px;
-            border: 1px solid rgba(79, 172, 254, 0.5);
-            box-shadow: 0 0 15px rgba(79, 172, 254, 0.15);
+            border: 1px solid rgba(79, 172, 254, 0.3);
         }
         .lil-gui .title { color: #4facfe; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="hud-top"><span class="hud-text">SOLAR SYSTEM DATABASE_V13</span></div>
+    <div id="hud">
+        <div class="hud-line">SYSTEM: ONLINE</div>
+        <div class="hud-line">MODE: HOLOGRAPHIC VOXEL</div>
+    </div>
+    
     <video id="video-input" playsinline></video>
     <div id="canvas-container"></div>
-    <div id="loader">Initializing Voxel Engine...</div>
+    <div id="loader">INITIALIZING CORE...</div>
 
     <script type="importmap">
         {
@@ -77,67 +79,70 @@
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import GUI from 'lil-gui';
 
-        // --- 核心配置 ---
+        // --- 1. 核心配置 (Config) ---
         const config = {
-            count: 6000,          // 粒子数量
-            voxelSize: 0.4,       // 晶体大小
-            target: 'earth',      // 默认目标
-            bloomStrength: 1.6,   // 辉光强度
+            particleCount: 7000,   // 粒子数
+            voxelSize: 0.45,       // 晶体大小 (控制此参数，而非 material.size)
+            target: 'earth',       // 默认目标
+            bloomStrength: 1.8,    // 辉光
             bloomRadius: 0.5,
-            handZoomSpeed: 0.1,
-            handRotateSpeed: 3.0,
+            handZoomSpeed: 0.08,
+            handRotateSpeed: 2.5,
             autoRotate: true
         };
 
-        // --- 霓虹调色板 (Cyber Palette) ---
-        const colors = {
-            blue: new THREE.Color(0x4facfe),     // 主色调
+        // --- 2. 颜色定义 (科技蓝基调) ---
+        const C = {
+            blue: new THREE.Color(0x4facfe),     // 主色 (Electric Blue)
             cyan: new THREE.Color(0x00f2fe),     // 青
             white: new THREE.Color(0xffffff),    // 白
-            purple: new THREE.Color(0x9b59b6),   // 紫 (银河)
-            gold: new THREE.Color(0xffd700),     // 金 (土星/金星)
-            orange: new THREE.Color(0xff8c00),   // 橙 (太阳/木星)
-            red: new THREE.Color(0xff3333),      // 红 (火星)
-            deepBlue: new THREE.Color(0x00008b), // 深蓝 (海王星)
-            grey: new THREE.Color(0xa9a9a9)      // 灰 (水星)
+            gold: new THREE.Color(0xffd700),     // 金 (太阳/土星)
+            marsRed: new THREE.Color(0xff4500),  // 火星红
+            jupiter: new THREE.Color(0xe0a060),  // 木星褐
+            nepBlue: new THREE.Color(0x1010aa),  // 海王星深蓝
+            grey: new THREE.Color(0x888888)      // 水星灰
         };
 
-        // --- 场景搭建 ---
+        // --- 3. 噪声类 (内置，防CORS报错) ---
+        class ImprovedNoise{constructor(){const p=[151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];for(let i=0;i<256;i++)p[256+i]=p[i];this.p=p}noise(x,y,z){const p=this.p,fade=t=>t*t*t*(t*(t*6-15)+10),lerp=(t,a,b)=>a+t*(b-a),grad=(hash,x,y,z)=>{const h=hash&15,u=h<8?x:y,v=h<4?y:h===12||h===14?x:z;return((h&1)===0?u:-u)+((h&2)===0?v:-v)};const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);const u=fade(x),v=fade(y),w=fade(z);const A=p[X]+Y,AA=p[A]+Z,AB=p[A+1]+Z,B=p[X+1]+Y,BA=p[B]+Z,BB=p[B+1]+Z;return lerp(w,lerp(v,lerp(u,grad(p[AA],x,y,z),grad(p[BA],x-1,y,z)),lerp(u,grad(p[AB],x,y-1,z),grad(p[BB],x-1,y-1,z))),lerp(v,lerp(u,grad(p[AA+1],x,y,z-1),grad(p[BA+1],x-1,y,z-1)),lerp(u,grad(p[AB+1],x,y-1,z-1),grad(p[BB+1],x-1,y-1,z-1))))}}
+        const noise = new ImprovedNoise();
+
+        // --- 4. 场景初始化 ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020204); 
-        scene.fog = new THREE.FogExp2(0x020204, 0.02);
+        scene.background = new THREE.Color(0x020202); 
+        scene.fog = new THREE.Fog(0x020202, 20, 60);
 
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.z = 35;
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.z = 35; 
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false }); 
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         container.appendChild(renderer.domElement);
 
-        // --- Bloom ---
+        // Bloom 后期处理
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.1;
         bloomPass.strength = config.bloomStrength;
         bloomPass.radius = config.bloomRadius;
         composer.addPass(bloomPass);
 
-        // --- InstancedMesh ---
+        // --- 5. 粒子系统 (InstancedMesh) ---
         const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+        const material = new THREE.MeshBasicMaterial(); // 颜色由Instance控制
         const mesh = new THREE.InstancedMesh(geometry, material, config.count);
         scene.add(mesh);
 
+        // 数据数组
         const dummy = new THREE.Object3D();
         const positions = [];       
         const targetPositions = []; 
         const currentColors = [];   
         const targetColors = [];    
 
-        // 初始化数组
+        // 初始化
         for(let i=0; i<config.count; i++) {
             positions.push((Math.random()-0.5)*50, (Math.random()-0.5)*50, (Math.random()-0.5)*50);
             targetPositions.push(0,0,0);
@@ -145,154 +150,131 @@
             targetColors.push(0,0,1);
         }
 
-        // --- 简单噪声函数 ---
+        // --- 6. 形状生成算法 (修复版) ---
         function simpleNoise(x, y, z) {
             return Math.sin(x*10 + Math.cos(y*12 + z*15)) * 0.5 + 0.5;
         }
 
-        // --- 🪐 太阳系全家桶生成逻辑 ---
         function calculateLayout(type) {
             const rBase = 12; // 基础半径
 
             for (let i = 0; i < config.count; i++) {
                 let x, y, z;
-                let c = colors.blue;
+                let c = C.blue;
                 
+                // 通用球体参数
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
                 
-                // 默认球体坐标
-                let r = rBase;
-                x = r * Math.sin(phi) * Math.cos(theta);
-                y = r * Math.sin(phi) * Math.sin(theta);
-                z = r * Math.cos(phi);
-
-                // --- 星球特色逻辑 ---
-
-                if (type === 'sun') { // ☀️ 太阳
-                    r = rBase * (0.7 + Math.random() * 0.4);
-                    const spike = Math.random() > 0.9 ? 1.4 : 1.0;
+                // --- 太阳系逻辑 ---
+                if (type === 'sun') { // ☀️
+                    const r = rBase * (0.8 + Math.random() * 0.4);
+                    const spike = Math.random() > 0.9 ? 1.5 : 1.0;
                     x = r * spike * Math.sin(phi) * Math.cos(theta);
                     y = r * spike * Math.sin(phi) * Math.sin(theta);
                     z = r * spike * Math.cos(phi);
-                    
                     const mix = Math.random();
-                    if(mix > 0.6) c = colors.white;
-                    else if(mix > 0.2) c = colors.orange;
-                    else c = colors.gold;
+                    c = mix > 0.6 ? C.white : (mix > 0.3 ? C.gold : C.marsRed);
 
-                } else if (type === 'mercury') { // 🌑 水星 (小，灰蓝)
-                    r = rBase * 0.6; // 小
+                } else if (type === 'mercury') { // 🌑
+                    const r = rBase * 0.5;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    // 表面粗糙
-                    if (Math.random() > 0.8) { x*=0.95; y*=0.95; z*=0.95; }
-                    c = colors.grey.clone().lerp(colors.blue, 0.3); // 科技灰
+                    // 陨石坑噪点
+                    if(Math.random()>0.8) { x*=0.95; y*=0.95; z*=0.95; }
+                    c = C.grey.clone().lerp(C.blue, 0.2);
 
-                } else if (type === 'venus') { // 🌕 金星 (亮，致密大气)
-                    r = rBase * 0.9;
+                } else if (type === 'venus') { // 🌕
+                    const r = rBase * 0.9;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    // 非常亮
-                    c = colors.gold.clone().lerp(colors.white, Math.random()*0.5);
+                    c = C.gold.clone().lerp(C.white, Math.random()*0.6);
 
-                } else if (type === 'earth') { // 🌍 地球 (分层)
-                    r = rBase;
+                } else if (type === 'earth') { // 🌍
+                    let r = rBase;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    
-                    const noiseVal = simpleNoise(x*0.1, y*0.1, z*0.1);
-                    if (noiseVal > 0.65) {
-                        c = new THREE.Color(0x22ee22); // 亮绿
-                        x *= 1.03; y *= 1.03; z *= 1.03; 
-                    } else if (Math.random() > 0.9) {
-                         c = colors.white; // 云
-                         x *= 1.1; y *= 1.1; z *= 1.1;
-                    } else {
-                        c = colors.blue.clone().lerp(colors.deepBlue, Math.random()); // 深蓝海
-                    }
+                    const nVal = simpleNoise(x*0.1, y*0.1, z*0.1);
+                    if (nVal > 0.65) { c = new THREE.Color(0x22ee22); x*=1.02; y*=1.02; z*=1.02; } // 绿
+                    else if (Math.random()>0.9) { c = C.white; x*=1.08; y*=1.08; z*=1.08; } // 云
+                    else c = C.blue.clone().lerp(C.nepBlue, Math.random()*0.5); // 蓝
 
-                } else if (type === 'mars') { // 🔴 火星 (红，乱)
-                    r = rBase * 0.7;
+                } else if (type === 'mars') { // 🔴
+                    const r = rBase * 0.7;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    
-                    const rough = simpleNoise(x*0.2, y*0.2, z*0.2);
-                    if(rough > 0.6) { x*=1.05; y*=1.05; z*=1.05; } // 高地
-                    c = colors.red.clone().lerp(colors.orange, Math.random()*0.5);
+                    c = C.marsRed.clone().lerp(C.gold, Math.random()*0.3);
 
-                } else if (type === 'jupiter') { // 🍘 木星 (条纹)
-                    r = rBase * 1.4; // 巨大
+                } else if (type === 'jupiter') { // 🍘
+                    const r = rBase * 1.5;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    
-                    // 条纹逻辑 (基于Y轴)
-                    const band = Math.sin(y * 1.5 + simpleNoise(x,0,z)); 
-                    if (band > 0.5) c = colors.orange;
-                    else if (band > 0) c = colors.gold.clone().multiplyScalar(0.8);
-                    else c = colors.blue.clone().lerp(colors.grey, 0.5); // 暗带
+                    // 条纹
+                    const band = Math.sin(y*1.5 + simpleNoise(x,0,z));
+                    if(band > 0.5) c = C.jupiter;
+                    else if(band > 0) c = C.gold.clone().multiplyScalar(0.7);
+                    else c = C.blue.clone().lerp(C.grey, 0.5);
 
-                } else if (type === 'saturn') { // 🪐 土星 (环)
-                    if (i < config.count * 0.4) {
-                        r = rBase * 1.1;
+                } else if (type === 'saturn') { // 🪐
+                    if(i < config.count * 0.5) {
+                        const r = rBase * 1.2;
                         x = r * Math.sin(phi) * Math.cos(theta);
                         y = r * Math.sin(phi) * Math.sin(theta);
                         z = r * Math.cos(phi);
-                        c = colors.gold.clone().multiplyScalar(0.7);
+                        c = C.gold.clone().multiplyScalar(0.8);
                     } else {
-                        const ringR = rBase * (1.6 + Math.random()*1.2);
-                        const angle = Math.random() * Math.PI * 2;
-                        x = ringR * Math.cos(angle);
-                        z = ringR * Math.sin(angle);
-                        y = (Math.random()-0.5) * 0.6; 
-                        c = colors.blue.clone().lerp(colors.white, Math.random());
+                        const r = rBase * (1.8 + Math.random());
+                        const ang = Math.random()*Math.PI*2;
+                        x = r * Math.cos(ang);
+                        z = r * Math.sin(ang);
+                        y = (Math.random()-0.5)*0.5;
+                        c = C.blue.clone().lerp(C.white, Math.random());
                     }
 
-                } else if (type === 'uranus') { // ⚙️ 天王星 (竖环)
-                    if (i < config.count * 0.5) {
-                        r = rBase * 1.0;
-                        x = r * Math.sin(phi) * Math.cos(theta);
-                        y = r * Math.sin(phi) * Math.sin(theta);
-                        z = r * Math.cos(phi);
-                        c = colors.cyan;
-                    } else {
-                        // 竖着的环 (交换X和Y，或者Y和Z)
-                        const ringR = rBase * (1.5 + Math.random()*0.8);
-                        const angle = Math.random() * Math.PI * 2;
-                        // 原本是 x, z 平面，现在要在 x, y 平面
-                        x = ringR * Math.cos(angle);
-                        y = ringR * Math.sin(angle);
-                        z = (Math.random()-0.5) * 0.4;
-                        c = colors.white.clone().multiplyScalar(0.8);
-                    }
-
-                } else if (type === 'neptune') { // 🔵 海王星 (深蓝，风暴)
-                    r = rBase * 1.0;
+                } else if (type === 'uranus') { // ⚙️
+                    const r = rBase * 1.1;
                     x = r * Math.sin(phi) * Math.cos(theta);
                     y = r * Math.sin(phi) * Math.sin(theta);
                     z = r * Math.cos(phi);
-                    
-                    const storm = simpleNoise(x*0.3, y*0.3, z*0.3);
-                    if(storm > 0.7) c = colors.blue; // 亮斑
-                    else c = colors.deepBlue;
+                    // 竖直环
+                    if(i > config.count*0.8) {
+                        const ang = Math.random()*Math.PI*2;
+                        const rRing = rBase * (1.6 + Math.random()*0.5);
+                        x = rRing * Math.cos(ang);
+                        y = rRing * Math.sin(ang);
+                        z = (Math.random()-0.5)*0.5;
+                        c = C.white;
+                    } else {
+                        c = C.cyan;
+                    }
 
-                } else if (type === 'galaxy') { // 🌌 银河 (旋臂)
-                    const arm = i % 4; // 4条旋臂
-                    r = Math.random() * rBase * 2.0;
+                } else if (type === 'neptune') { // 🔵
+                    const r = rBase * 1.05;
+                    x = r * Math.sin(phi) * Math.cos(theta);
+                    y = r * Math.sin(phi) * Math.sin(theta);
+                    z = r * Math.cos(phi);
+                    c = C.nepBlue.clone().lerp(C.blue, Math.random()*0.3);
+
+                } else if (type === 'pluto') { // ⚪️
+                    const r = rBase * 0.4;
+                    x = r * Math.sin(phi) * Math.cos(theta);
+                    y = r * Math.sin(phi) * Math.sin(theta);
+                    z = r * Math.cos(phi);
+                    c = C.white.clone().multiplyScalar(0.8);
+
+                } else if (type === 'galaxy') { // 🌌
+                    const arm = i % 4;
+                    const r = Math.random() * rBase * 2.5;
                     const angle = r * 0.4 + (arm * Math.PI * 2 / 4);
                     x = r * Math.cos(angle) + (Math.random()-0.5)*3;
                     z = r * Math.sin(angle) + (Math.random()-0.5)*3;
-                    y = (Math.random()-0.5) * (20 - r*0.6);
-                    
-                    const dist = r / (rBase*2);
-                    if (dist < 0.15) c = colors.white; // 核心
-                    else if (dist < 0.5) c = colors.purple;
-                    else c = colors.blue;
+                    y = (Math.random()-0.5) * (15 - r*0.5);
+                    c = (r/rBase < 0.5) ? C.white : (r/rBase < 1.5 ? C.purple : C.blue);
                 }
 
                 targetPositions[i*3] = x; targetPositions[i*3+1] = y; targetPositions[i*3+2] = z;
@@ -300,103 +282,86 @@
             }
         }
 
-        // 初始加载
         calculateLayout(config.target);
 
-        // --- 手势控制逻辑 ---
-        let targetZoom = 35; 
+        // --- 7. 手势控制 ---
+        let targetZoom = 35;
         let targetRotY = 0;
-        
         const videoElement = document.getElementById('video-input');
+        
         function onResults(results) {
             document.getElementById('loader').style.display = 'none';
-            
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const hands = results.multiHandLandmarks;
-                
                 let pinchDist = 0;
-                let handCenterX = 0.5;
+                let centerX = 0.5;
 
                 if (hands.length === 2) {
                     const h1 = hands[0][0]; const h2 = hands[1][0];
                     pinchDist = Math.hypot(h1.x - h2.x, h1.y - h2.y);
-                    handCenterX = (h1.x + h2.x) / 2;
+                    centerX = (h1.x + h2.x) / 2;
                 } else {
                     const thumb = hands[0][4]; const pinky = hands[0][20];
                     pinchDist = Math.hypot(thumb.x - pinky.x, thumb.y - pinky.y) * 2;
-                    handCenterX = hands[0][9].x;
+                    centerX = hands[0][9].x;
                 }
-
-                // 缩放
                 const zoomFactor = 1.0 - Math.min(Math.max(pinchDist, 0.1), 0.8);
                 targetZoom = 15 + zoomFactor * 50;
-
-                // 旋转
-                targetRotY += (handCenterX - 0.5) * config.handRotateSpeed * 0.05;
+                targetRotY += (centerX - 0.5) * config.handRotateSpeed * 0.05;
             }
         }
 
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
         hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
         hands.onResults(onResults);
-        
         const cameraUtils = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 320, height: 240 });
         cameraUtils.start();
 
-        // --- GUI ---
-        const gui = new GUI({ title: 'PLANETARY SYSTEM' });
-        const celestialMap = { 
-            '☀️ Sun': 'sun', 
-            '🌑 Mercury': 'mercury',
-            '🌕 Venus': 'venus',
-            '🌍 Earth': 'earth',
-            '🔴 Mars': 'mars',
-            '🍘 Jupiter': 'jupiter',
-            '🪐 Saturn': 'saturn',
-            '⚙️ Uranus': 'uranus',
-            '🔵 Neptune': 'neptune',
-            '🌌 Galaxy': 'galaxy' 
+        // --- 8. GUI (确保顺序正确，修复报错) ---
+        const gui = new GUI({ title: 'CONTROL SYSTEM' });
+        const targets = {
+            '☀️ SUN': 'sun', '🌑 MERCURY': 'mercury', '🌕 VENUS': 'venus',
+            '🌍 EARTH': 'earth', '🔴 MARS': 'mars', '🍘 JUPITER': 'jupiter',
+            '🪐 SATURN': 'saturn', '⚙️ URANUS': 'uranus', '🔵 NEPTUNE': 'neptune',
+            '⚪️ PLUTO': 'pluto', '🌌 GALAXY': 'galaxy'
         };
-        gui.add(config, 'target', celestialMap).name('Target').onChange(v => calculateLayout(v));
-        gui.add(config, 'voxelSize', 0.1, 1.0).name('Voxel Size'); 
-        gui.add(config, 'bloomStrength', 0, 3).name('Neon Glow').onChange(v => bloomPass.strength = v);
-        gui.add(config, 'autoRotate').name('Auto Spin');
+        gui.add(config, 'target', targets).name('TARGET').onChange(v => calculateLayout(v));
+        // 修复：这里绑定 config.voxelSize 而不是 material.size
+        gui.add(config, 'voxelSize', 0.1, 1.0).name('CRYSTAL SIZE'); 
+        gui.add(config, 'bloomStrength', 0, 3).name('GLOW INTENSITY').onChange(v => bloomPass.strength = v);
+        gui.add(config, 'autoRotate').name('AUTO ROTATE');
 
-        // --- 动画循环 ---
+        // --- 9. 动画循环 ---
         function animate() {
             requestAnimationFrame(animate);
 
-            // 1. 摄像机与旋转
+            // 摄像机
             camera.position.z += (targetZoom - camera.position.z) * 0.05;
             mesh.rotation.y += (targetRotY - mesh.rotation.y) * 0.05;
-            if(config.autoRotate) mesh.rotation.y += config.autoRotateSpeed;
-            mesh.rotation.x = Math.sin(Date.now()*0.0005) * 0.05;
+            if(config.autoRotate) mesh.rotation.y += 0.002;
+            mesh.rotation.x = Math.sin(Date.now()*0.0005)*0.05;
 
-            // 2. 粒子更新
+            // 粒子更新
             const time = Date.now() * 0.001;
             const tempColor = new THREE.Color();
-            
+
             for (let i = 0; i < config.count; i++) {
-                const ix = i * 3; const iy = i * 3 + 1; const iz = i * 3 + 2;
+                const ix = i*3; const iy = i*3+1; const iz = i*3+2;
                 
-                // 位置 Lerp
                 positions[ix] += (targetPositions[ix] - positions[ix]) * 0.08;
                 positions[iy] += (targetPositions[iy] - positions[iy]) * 0.08;
                 positions[iz] += (targetPositions[iz] - positions[iz]) * 0.08;
 
-                // 颜色 Lerp
                 currentColors[ix] += (targetColors[ix] - currentColors[ix]) * 0.05;
                 currentColors[iy] += (targetColors[iy] - currentColors[iy]) * 0.05;
                 currentColors[iz] += (targetColors[iz] - currentColors[iz]) * 0.05;
 
                 dummy.position.set(positions[ix], positions[iy], positions[iz]);
                 
-                // 呼吸效果
-                const breath = 0.8 + 0.3 * Math.sin(time * 3 + i * 0.05);
-                const scale = config.voxelSize * breath;
+                // 呼吸动画
+                const scale = config.voxelSize * (0.8 + 0.3 * Math.sin(time*3 + i*0.05));
                 dummy.scale.set(scale, scale, scale);
-                
-                dummy.rotation.set(time + i, time * 0.5 + i, 0);
+                dummy.rotation.set(time+i, time*0.5+i, 0);
 
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
