@@ -3,43 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数字晶体v12</title>
+    <title>星核晶体 v12</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Courier New', monospace; }
+        body { margin: 0; overflow: hidden; background-color: #020202; font-family: 'Share Tech Mono', monospace; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         
-        /* 摄像头预览：极简线条框 */
+        /* 摄像头预览：科幻感边框 */
         #video-input { 
-            position: absolute; bottom: 20px; left: 20px; width: 160px; height: 120px; 
-            transform: scaleX(-1); opacity: 0.3; z-index: 2; 
-            border: 2px solid #fff; border-radius: 0;
-            pointer-events: none; mix-blend-mode: overlay;
+            position: absolute; bottom: 20px; left: 20px; width: 180px; height: 135px; 
+            transform: scaleX(-1); opacity: 0.25; z-index: 2; 
+            border: 2px solid #00ffff; box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+            pointer-events: none; mix-blend-mode: screen; border-radius: 4px;
         }
         
-        /* UI 风格：极简黑白 */
+        /* 加载文本 */
         #loader {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #fff; font-size: 14px; z-index: 20; pointer-events: none;
-            letter-spacing: 4px; text-transform: uppercase; border: 1px solid #fff;
-            padding: 10px 20px; background: rgba(0,0,0,0.8);
+            color: #00ffff; font-size: 16px; z-index: 20; pointer-events: none;
+            letter-spacing: 4px; text-transform: uppercase; text-shadow: 0 0 10px #00ffff;
+            background: rgba(0,0,0,0.7); padding: 12px 25px; border: 1px solid #00ffff;
+            animation: pulse 1.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { box-shadow: 0 0 10px #00ffff; }
+            to { box-shadow: 0 0 25px #00ffff, 0 0 50px rgba(0, 255, 255, 0.5); }
         }
 
-        /* 隐藏 GUI 的大部分装饰，只留核心 */
+        /* GUI 风格：保持极简但加入一些科技感颜色 */
         .lil-gui { 
-            --background-color: #111; 
-            --text-color: #fff; 
-            --title-background-color: #222;
-            --widget-color: #444;
-            --focus-color: #fff;
-            --width: 200px;
+            --background-color: rgba(0, 0, 0, 0.85); 
+            --text-color: #e0ffff; 
+            --title-background-color: rgba(0, 255, 255, 0.1);
+            --widget-color: rgba(0, 255, 255, 0.05);
+            --focus-color: #00ffff;
+            --highlight-color: #00ffff;
+            --number-background-color: rgba(0, 255, 255, 0.08);
+            --width: 280px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
         }
+        .lil-gui .title { color: #00ffff; text-shadow: 0 0 5px #00ffff; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <video id="video-input" playsinline></video>
     <div id="canvas-container"></div>
-    <div id="loader">System Loading...</div>
+    <div id="loader">LOADING QUANTUM MATRIX...</div>
 
     <script type="importmap">
         {
@@ -64,26 +74,31 @@
 
         // --- 核心配置 ---
         const config = {
-            count: 4000,          // 粒子数量减少，但单个粒子变大，保证性能和整洁度
-            cubeSize: 0.35,       // 🔥 粒子非常大，像积木一样
-            shape: 'sphere',      // 初始形状
-            colorScale: 1.0,      // 颜色亮度
-            bloomStrength: 1.2,   // 辉光强度
+            count: 7000,          // 粒子数量
+            voxelSize: 0.3,       // 单个晶体大小
+            currentObject: 'sun',
+            bloomStrength: 1.5,   // 辉光强度
+            bloomRadius: 0.6,
+            bloomThreshold: 0.0,  // 让所有发光体都产生辉光
             handZoomSpeed: 0.05,
-            handRotateSpeed: 2.0
+            handRotateSpeed: 2.5,
+            autoRotateSpeed: 0.002 // 缓慢的自动旋转
         };
 
-        // --- 场景搭建 ---
+        // --- 噪声函数 (用于晶体形状的微调) ---
+        class ImprovedNoise{constructor(){const p=[151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];for(let i=0;i<256;i++)p[256+i]=p[i];this.p=p}noise(x,y,z){const p=this.p,fade=t=>t*t*t*(t*(t*6-15)+10),lerp=(t,a,b)=>a+t*(b-a),grad=(hash,x,y,z)=>{const h=hash&15,u=h<8?x:y,v=h<4?y:h===12||h===14?x:z;return((h&1)===0?u:-u)+((h&2)===0?v:-v)};const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);const u=fade(x),v=fade(y),w=fade(z);const A=p[X]+Y,AA=p[A]+Z,AB=p[A+1]+Z,B=p[X+1]+Y,BA=p[B]+Z,BB=p[B+1]+Z;return lerp(w,lerp(v,lerp(u,grad(p[AA],x,y,z),grad(p[BA],x-1,y,z)),lerp(u,grad(p[AB],x,y-1,z),grad(p[BB],x-1,y-1,z))),lerp(v,lerp(u,grad(p[AA+1],x,y,z-1),grad(p[BA+1],x-1,y,z-1)),lerp(u,grad(p[AB+1],x,y-1,z-1),grad(p[BB+1],x-1,y-1,z-1))))}}
+        const noise = new ImprovedNoise();
+
+        // --- 场景 ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505); // 纯黑偏灰背景
-        // 添加一点环境雾，让远处的方块变暗，增加深邃感
-        scene.fog = new THREE.Fog(0x050505, 20, 50);
+        scene.background = new THREE.Color(0x020202); 
+        scene.fog = new THREE.Fog(0x020202, 20, 50);
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.z = 30; // 默认距离
+        camera.position.z = 30; 
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false }); // 关闭抗锯齿，追求锐利像素感
+        const renderer = new THREE.WebGLRenderer({ antialias: false }); 
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         container.appendChild(renderer.domElement);
@@ -91,217 +106,275 @@
         // --- 后期处理 (Bloom 辉光) ---
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0;
-        bloomPass.strength = config.bloomStrength;
-        bloomPass.radius = 0.5;
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 
+            config.bloomStrength, config.bloomRadius, config.bloomThreshold);
         composer.addPass(bloomPass);
 
-        // --- 核心：InstancedMesh (高性能实体粒子) ---
-        // 我们使用 BoxGeometry (立方体) 而不是 Point (点)
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff }); // 基础材质，颜色通过 InstanceColor 控制
+        // --- InstancedMesh ---
+        const geometry = new THREE.BoxGeometry(1, 1, 1); // 基础晶体几何
+        const material = new THREE.MeshBasicMaterial(); // 基础材质，颜色通过 InstancedMesh 控制
         const mesh = new THREE.InstancedMesh(geometry, material, config.count);
         scene.add(mesh);
 
-        // 存储位置数据的数组
+        // 存储晶体状态
         const dummy = new THREE.Object3D();
-        const positions = []; // 当前位置
-        const targets = [];   // 目标位置
-        const colors = [];    // 颜色数据
+        const currentPositions = []; // 当前位置，用于插值
+        const targetPositions = [];  // 目标位置
+        const currentColors = [];    // 当前颜色
+        const targetColors = [];     // 目标颜色
 
-        // --- 形状生成算法 (数学秩序美) ---
-        
-        // 1. 斐波那契球体 (Fibonacci Sphere) - 极度均匀的球体分布
-        function getSphereLayout() {
-            const layout = [];
-            const phi = Math.PI * (3 - Math.sqrt(5)); // 黄金角
-            for (let i = 0; i < config.count; i++) {
-                const y = 1 - (i / (config.count - 1)) * 2; // y 从 1 到 -1
-                const radius = Math.sqrt(1 - y * y);
-                const theta = phi * i;
+        // --- 天体数据 (包含尺寸和颜色调色板) ---
+        const celestialBodies = {
+            'sun': { name: 'Sun', radius: 18, colors: [0xffa500, 0xff5500, 0xffefd5] }, // 橙黄、深红、淡黄
+            'mercury': { name: 'Mercury', radius: 8, colors: [0xaaaaaa, 0x666666, 0xcccccc] }, // 灰
+            'venus': { name: 'Venus', radius: 10, colors: [0xffcc66, 0xffaa00, 0xffeedd] }, // 金黄、暖橙
+            'earth': { name: 'Earth', radius: 12, colors: [0x00aaff, 0x0077dd, 0x22ee22, 0xffffff] }, // 蓝、深蓝、绿、白
+            'mars': { name: 'Mars', radius: 9, colors: [0xdd5500, 0xaa3300, 0xff8844] }, // 红褐、深红、亮橙
+            'jupiter': { name: 'Jupiter', radius: 16, colors: [0xdc9a66, 0xa3744d, 0x7c5a3b, 0xf0e0d0] }, // 棕黄、土色
+            'saturn': { name: 'Saturn', radius: 14, colors: [0xe3dccb, 0xcabda5, 0xffffff] }, // 淡黄、灰白、纯白 (光环)
+            'uranus': { name: 'Uranus', radius: 13, colors: [0x88ffff, 0x44ccff, 0xccffff] }, // 青蓝
+            'neptune': { name: 'Neptune', radius: 13, colors: [0x3333ff, 0x2222dd, 0x5555ff] }, // 深蓝
+            'galaxy': { name: 'Galaxy Core', radius: 25, colors: [0xffd700, 0xff69b4, 0x8a2be2, 0xffffff] } // 银河核心：金、粉、紫、白
+        };
+
+        // --- 晶体布局生成函数 ---
+        // 参数：bodyKey (天体名称), densityScale (密度调整), shapeNoise (形状噪点强度)
+        function generateLayout(bodyKey, customCount = config.count) {
+            targetPositions.length = 0;
+            targetColors.length = 0;
+            const bodyData = celestialBodies[bodyKey];
+            const baseRadius = bodyData.radius;
+            const colorsPalette = bodyData.colors.map(c => new THREE.Color(c));
+
+            for (let i = 0; i < customCount; i++) {
+                let x, y, z;
+                let particleColor = new THREE.Color();
                 
-                const r = 10; // 球体半径
-                layout.push(
-                    Math.cos(theta) * radius * r,
-                    y * r,
-                    Math.sin(theta) * radius * r
-                );
-            }
-            return layout;
-        }
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1); // 均匀球体分布
+                let currentRadius = baseRadius;
 
-        // 2. 晶格立方体 (Lattice Cube) - 整齐的矩阵
-        function getCubeLayout() {
-            const layout = [];
-            const side = Math.cbrt(config.count); // 计算立方体边长上有多少个粒子
-            const step = 15 / side; // 间距
-            const offset = (side * step) / 2;
-            
-            let i = 0;
-            for(let x=0; x<side; x++) {
-                for(let y=0; y<side; y++) {
-                    for(let z=0; z<side; z++) {
-                        if (i >= config.count) break;
-                        layout.push(
-                            x * step - offset,
-                            y * step - offset,
-                            z * step - offset
-                        );
-                        i++;
+                // 根据天体类型生成不同形状和颜色
+                if (bodyKey === 'sun') {
+                    // 太阳：不规则爆发的核心
+                    const distToCenter = Math.random();
+                    currentRadius = baseRadius * (0.8 + distToCenter * 0.5); // 中心致密，外围疏散
+                    const n = noise.noise(theta * 2, phi * 2, i * 0.1);
+                    if (n > 0.6) particleColor.copy(colorsPalette[0]).lerp(colorsPalette[1], Math.random()); // 橙红核心
+                    else particleColor.copy(colorsPalette[2]).lerp(colorsPalette[0], Math.random()); // 外部淡黄光晕
+
+                } else if (bodyKey === 'earth') {
+                    // 地球：分层结构 (海陆空)
+                    currentRadius = baseRadius;
+                    const nLand = noise.noise(Math.sin(phi)*5, Math.cos(theta)*5, i * 0.05);
+                    const nCloud = noise.noise(Math.sin(phi)*8, Math.cos(theta)*8, i * 0.1);
+                    
+                    if (nCloud > 0.6) {
+                        currentRadius += 0.8; // 云层更高
+                        particleColor.copy(colorsPalette[3]); // 白色云层
+                    } else if (nLand > 0.5) {
+                        particleColor.copy(colorsPalette[2]); // 绿色陆地
+                    } else {
+                        particleColor.copy(colorsPalette[0]).lerp(colorsPalette[1], Math.abs(Math.cos(phi))); // 蓝色海洋 (深浅渐变)
                     }
+
+                } else if (bodyKey === 'jupiter') {
+                    // 木星：抽象条纹
+                    const latFactor = Math.cos(phi) * 10; // 纬度决定条纹
+                    const stripeIndex = Math.floor((Math.sin(latFactor + noise.noise(theta*0.5, 0, 0)*2) + 1) * 0.5 * (colorsPalette.length - 0.1));
+                    particleColor.copy(colorsPalette[stripeIndex]);
+                    currentRadius = baseRadius * (0.95 + Math.random() * 0.1);
+
+                } else if (bodyKey === 'saturn') {
+                    // 土星：本体和光环
+                    const isRing = Math.random() > 0.4; // 60% 粒子构成光环
+                    if (isRing) {
+                        const ringInner = baseRadius * 1.2;
+                        const ringOuter = baseRadius * 2.0;
+                        const r = ringInner + Math.random() * (ringOuter - ringInner); // 光环半径
+                        x = r * Math.cos(theta);
+                        z = r * Math.sin(theta);
+                        y = (Math.random() - 0.5) * 0.4; // 光环厚度
+                        particleColor.copy(colorsPalette[2]).lerp(colorsPalette[0], Math.random()); // 白色到淡黄色光环
+                    } else {
+                        // 本体
+                        currentRadius = baseRadius * (0.8 + Math.random() * 0.2);
+                        particleColor.copy(colorsPalette[0]).lerp(colorsPalette[1], Math.random());
+                    }
+
+                } else if (bodyKey === 'uranus') {
+                    // 天王星：倾斜光环 (使用与土星类似的光环结构，但Y轴倾斜)
+                    const isRing = Math.random() > 0.5; // 50% 粒子构成光环
+                    if (isRing) {
+                        const ringInner = baseRadius * 1.1;
+                        const ringOuter = baseRadius * 1.8;
+                        const r = ringInner + Math.random() * (ringOuter - ringInner);
+                        x = r * Math.cos(theta);
+                        y = r * Math.sin(theta) * 0.2; // 稍微倾斜
+                        z = (Math.random() - 0.5) * 0.4; // 沿Z轴分散
+                        particleColor.copy(colorsPalette[2]).lerp(colorsPalette[0], Math.random());
+                    } else {
+                        currentRadius = baseRadius * (0.9 + Math.random() * 0.1);
+                        particleColor.copy(colorsPalette[0]).lerp(colorsPalette[1], Math.random());
+                    }
+
+                } else if (bodyKey === 'galaxy') {
+                    // 银河系核心：螺旋结构
+                    const armCount = 4;
+                    const spiralFactor = (Math.random() * 2 - 1) * Math.PI * 2; // 随机的起始角度
+                    const r = baseRadius * Math.pow(Math.random(), 0.7); // 中心致密
+                    const spiralAngle = theta + r * 0.5 + spiralFactor; // 螺旋角度
+                    
+                    x = r * Math.cos(spiralAngle);
+                    z = r * Math.sin(spiralAngle);
+                    y = (Math.random() - 0.5) * (baseRadius - r) * 0.6; // 中间厚，边缘薄
+
+                    // 根据距离调整颜色
+                    const distRatio = r / baseRadius;
+                    if (distRatio < 0.2) particleColor.copy(colorsPalette[3]); // 核心白色
+                    else if (distRatio < 0.5) particleColor.copy(colorsPalette[0]); // 金黄
+                    else if (distRatio < 0.8) particleColor.copy(colorsPalette[1]); // 粉色
+                    else particleColor.copy(colorsPalette[2]); // 紫色
+
+                } else {
+                    // 默认球体 (水星、金星、火星、海王星)
+                    currentRadius = baseRadius * (0.95 + Math.random() * 0.1); // 微调大小
+                    particleColor.copy(colorsPalette[0]).lerp(colorsPalette[1], Math.random());
                 }
+
+                // 如果 x,y,z 未在特殊逻辑中设置，则按球体坐标计算
+                if (x === undefined) {
+                    x = currentRadius * Math.sin(phi) * Math.cos(theta);
+                    y = currentRadius * Math.sin(phi) * Math.sin(theta);
+                    z = currentRadius * Math.cos(phi);
+                }
+
+                targetPositions.push(x, y, z);
+                targetColors.push(particleColor.r, particleColor.g, particleColor.b);
             }
-            // 补齐剩余粒子(如果有)
-            while(layout.length < config.count * 3) layout.push(0,0,0);
-            return layout;
         }
 
-        // 3. 环面 (Torus) - 有序的圆环
-        function getTorusLayout() {
-            const layout = [];
-            for(let i=0; i<config.count; i++) {
-                const angle = (i / config.count) * Math.PI * 20; // 绕大圈次数
-                const tubAngle = (i / config.count) * Math.PI * 2; // 绕管子次数
-                
-                const R = 8; // 大半径
-                const r = 3; // 管半径
-                
-                // 螺旋分布
-                layout.push(
-                    (R + r * Math.cos(angle)) * Math.cos(tubAngle),
-                    (R + r * Math.cos(angle)) * Math.sin(tubAngle),
-                    r * Math.sin(angle)
-                );
-            }
-            return layout;
-        }
-
-        // 初始化
-        const layoutSphere = getSphereLayout();
-        const layoutCube = getCubeLayout();
-        const layoutTorus = getTorusLayout();
-        
-        // 填充初始数据
+        // 初始化所有晶体状态
         for(let i=0; i<config.count; i++) {
-            positions.push(Math.random()*100, Math.random()*100, Math.random()*100);
-            targets.push(0,0,0);
-            
-            // 颜色生成：基于索引的彩虹渐变，看起来像光谱
-            const color = new THREE.Color();
-            color.setHSL(i / config.count, 0.8, 0.6); // HSL 彩虹色
-            mesh.setColorAt(i, color);
+            currentPositions.push((Math.random()-0.5)*50, (Math.random()-0.5)*50, (Math.random()-0.5)*50);
+            currentColors.push(1,1,1); // 初始白色
         }
-        mesh.instanceColor.needsUpdate = true;
 
-        // 切换目标形状
-        function setShape(shapeName) {
-            let data;
-            if (shapeName === 'sphere') data = layoutSphere;
-            else if (shapeName === 'cube') data = layoutCube;
-            else if (shapeName === 'torus') data = layoutTorus;
-
-            for(let i=0; i<config.count; i++) {
-                targets[i*3] = data[i*3] || 0;
-                targets[i*3+1] = data[i*3+1] || 0;
-                targets[i*3+2] = data[i*3+2] || 0;
-            }
+        // 切换天体函数
+        function switchCelestialBody(key) {
+            config.currentObject = key;
+            generateLayout(key); // 重新生成布局
+            // 在这里我们不重置 currentPositions 和 currentColors，
+            // 而是让它们平滑过渡到新的 targetPositions 和 targetColors
         }
-        setShape('sphere');
 
         // --- 手势控制逻辑 ---
-        let targetZoom = 30; // 目标摄像机Z轴距离
-        let targetRotY = 0;  // 目标场景旋转Y
+        let targetCameraZ = camera.position.z;
+        let targetRotationY = 0; 
         
         const videoElement = document.getElementById('video-input');
-        function onResults(results) {
+        function onHandResults(results) {
             document.getElementById('loader').style.display = 'none';
-            
+            videoElement.style.opacity = '0.6'; // 有手势时，摄像头预览更亮
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const hands = results.multiHandLandmarks;
                 
-                // 1. 计算缩放 (基于两手距离 或 单手张开距离)
+                // 1. 缩放 (基于两手距离 或 单手张开距离)
                 let pinchDist = 0;
-                let centerX = 0;
+                let handCenterX = 0;
 
                 if (hands.length === 2) {
-                    // 双手：计算两只手腕的距离
-                    const h1 = hands[0][0]; const h2 = hands[1][0];
+                    const h1 = hands[0][0]; const h2 = hands[1][0]; // 手腕
                     pinchDist = Math.hypot(h1.x - h2.x, h1.y - h2.y);
-                    centerX = (h1.x + h2.x) / 2;
+                    handCenterX = (h1.x + h2.x) / 2;
                 } else {
-                    // 单手：计算拇指和小指距离
-                    const h1 = hands[0][4]; const h2 = hands[0][20];
-                    pinchDist = Math.hypot(h1.x - h2.x, h1.y - h2.y) * 2.0; // 放大系数
-                    centerX = hands[0][9].x;
+                    const thumbTip = hands[0][4]; const pinkyTip = hands[0][20]; // 拇指与小指尖
+                    pinchDist = Math.hypot(thumbTip.x - pinkyTip.x, thumbTip.y - pinkyTip.y) * 2; // 放大单手张开的范围
+                    handCenterX = hands[0][9].x; // 中指根部作为中心
                 }
 
-                // 映射缩放: 距离越近 -> 摄像机越远(Zoom Out)，距离越远 -> 摄像机越近(Zoom In)
-                // pinchDist 0.1 (合拢) ~ 0.8 (张开)
-                // Camera Z: 15 (近) ~ 60 (远)
-                const zoomFactor = 1.0 - Math.min(Math.max(pinchDist, 0.1), 0.8); // 归一化反转
-                targetZoom = 15 + zoomFactor * 45;
+                // 将 pinchDist (0.1 ~ 0.8) 映射到 Camera Z (15 ~ 45)
+                const zoomFactor = 1.0 - Math.min(Math.max(pinchDist, 0.1), 0.8); 
+                targetCameraZ = 15 + zoomFactor * 30; // 调整缩放范围
 
-                // 2. 计算旋转 (基于手在屏幕的左右位置)
-                // centerX 0 (左) ~ 1 (右)
-                // 映射到旋转速度
-                targetRotY += (centerX - 0.5) * config.handRotateSpeed * 0.1;
+                // 2. 旋转 (基于手势的X轴位置)
+                // handCenterX (0 ~ 1) 映射到旋转增量
+                targetRotationY += (handCenterX - 0.5) * config.handRotateSpeed * 0.01;
+            } else {
+                videoElement.style.opacity = '0.25'; // 无手势时，摄像头预览变暗
             }
         }
 
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
         hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-        hands.onResults(onResults);
+        hands.onResults(onHandResults);
         
         const cameraUtils = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 320, height: 240 });
-        cameraUtils.start();
+        cameraUtils.start().catch(e => { console.error("Camera access denied:", e); document.getElementById('loader').innerText = "CAMERA OFFLINE. MOUSE CONTROL ACTIVE."; });
+
+        // --- 初始化 ---
+        switchCelestialBody(config.currentObject); // 初始显示太阳
 
         // --- GUI ---
-        const gui = new GUI({ title: 'System Control' });
-        const params = { shape: 'sphere' };
-        gui.add(params, 'shape', ['sphere', 'cube', 'torus']).name('Structure').onChange(setShape);
-        gui.add(config, 'cubeSize', 0.1, 0.8).name('Voxel Size');
-        gui.add(config, 'bloomStrength', 0, 3).name('Glow Level').onChange(v => bloomPass.strength = v);
+        const gui = new GUI({ title: 'QUANTUM CONTROL' });
+        const bodyNames = {};
+        for(let key in celestialBodies) bodyNames[`${celestialBodies[key].name}`] = key;
+        
+        gui.add(config, 'currentObject', bodyNames).name('Celestial Body').onChange(switchCelestialBody);
+        gui.add(config, 'voxelSize', 0.1, 0.8).name('Voxel Size');
+        gui.add(config, 'bloomStrength', 0, 3).name('Glow Intensity').onChange(v => bloomPass.strength = v);
+        gui.add(config, 'handZoomSpeed', 0.01, 0.1).name('Zoom Speed');
+        gui.add(config, 'handRotateSpeed', 0.5, 5.0).name('Rotate Speed');
 
         // --- 动画循环 ---
+        const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
+            const deltaTime = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
 
-            // 1. 平滑手势控制
-            // 摄像机缩放平滑
-            camera.position.z += (targetZoom - camera.position.z) * 0.1;
-            // 场景旋转平滑 (旋转的是整个mesh容器)
-            mesh.rotation.y += (targetRotY - mesh.rotation.y) * 0.05;
-            // 自动微旋转
-            mesh.rotation.x += 0.001;
-            mesh.rotation.z += 0.001;
-
-            // 2. 粒子插值更新
-            const time = Date.now() * 0.001;
+            // 1. 摄像机缩放平滑
+            camera.position.z += (targetCameraZ - camera.position.z) * config.handZoomSpeed * 5 * deltaTime;
             
+            // 2. 场景旋转平滑 (手动 + 自动)
+            mesh.rotation.y += (targetRotationY - mesh.rotation.y) * 0.1; // 手动旋转
+            mesh.rotation.y += config.autoRotateSpeed * deltaTime; // 自动旋转
+            mesh.rotation.x += config.autoRotateSpeed * 0.5 * deltaTime; // 辅助旋转
+
+            // 3. 晶体位置和颜色插值更新
+            const tempColor = new THREE.Color();
             for (let i = 0; i < config.count; i++) {
                 const ix = i * 3; const iy = i * 3 + 1; const iz = i * 3 + 2;
                 
-                // Lerp 位置到目标
-                positions[ix] += (targets[ix] - positions[ix]) * 0.08;
-                positions[iy] += (targets[iy] - positions[iy]) * 0.08;
-                positions[iz] += (targets[iz] - positions[iz]) * 0.08;
+                // 位置平滑插值
+                currentPositions[ix] += (targetPositions[ix] - currentPositions[ix]) * 0.05;
+                currentPositions[iy] += (targetPositions[iy] - currentPositions[iy]) * 0.05;
+                currentPositions[iz] += (targetPositions[iz] - currentPositions[iz]) * 0.05;
 
-                // 设置每一个 Instance 的变换矩阵
-                dummy.position.set(positions[ix], positions[iy], positions[iz]);
+                // 颜色平滑插值
+                currentColors[ix] += (targetColors[ix] - currentColors[ix]) * 0.05;
+                currentColors[iy] += (targetColors[iy] - currentColors[iy]) * 0.05;
+                currentColors[iz] += (targetColors[iz] - currentColors[iz]) * 0.05;
+
+                // 应用到 InstancedMesh
+                dummy.position.set(currentPositions[ix], currentPositions[iy], currentPositions[iz]);
                 
-                // 🔥 核心美化：让每个方块自转，且随位置不同而不同，增加闪烁感
-                dummy.rotation.set(time + ix, time + iy, 0); 
-                
-                // 🔥 核心美化：根据与中心的距离动态调整大小（呼吸感）
-                // 越靠近中心的稍微小一点，外面的大一点，或者随时间波动
-                const scale = config.cubeSize * (0.8 + 0.4 * Math.sin(time * 2 + i * 0.1));
+                // 晶体呼吸效果：大小随时间波动
+                const scale = config.voxelSize * (0.8 + 0.4 * Math.sin(elapsedTime * 2 + i * 0.1));
                 dummy.scale.set(scale, scale, scale);
+
+                // 晶体自转：每个晶体独立旋转，增加动态感
+                dummy.rotation.set(elapsedTime + i * 0.05, elapsedTime * 0.8 + i * 0.03, elapsedTime * 1.2 + i * 0.07);
 
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
+                
+                tempColor.setRGB(currentColors[ix], currentColors[iy], currentColors[iz]);
+                mesh.setColorAt(i, tempColor);
             }
             mesh.instanceMatrix.needsUpdate = true;
+            mesh.instanceColor.needsUpdate = true;
 
             composer.render();
         }
@@ -313,7 +386,3 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
