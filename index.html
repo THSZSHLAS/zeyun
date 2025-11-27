@@ -3,38 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>太阳系全息投影v9.0</title>
+    <title>蔚蓝星核(v10.0)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #000; }
         
-        /* 摄像头预览 - 放在左下角，半透明 */
         #video-input { 
             position: absolute; bottom: 10px; left: 10px; width: 120px; height: 90px; 
-            transform: scaleX(-1); border-radius: 8px; opacity: 0.3; z-index: 2; 
-            border: 1px solid rgba(255,255,255,0.1); pointer-events: none; 
+            transform: scaleX(-1); border-radius: 8px; opacity: 0.2; z-index: 2; /* 更低的透明度，更融入背景 */
+            border: 1px solid rgba(79, 172, 254, 0.1); pointer-events: none; 
             transition: opacity 0.3s; mix-blend-mode: screen; 
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.3); /* 蓝色光晕 */
         }
-        #video-input.active { opacity: 0.6; }
+        #video-input.active { opacity: 0.5; }
         
         #fs-btn {
             position: absolute; top: 20px; right: 20px; z-index: 10;
-            background: rgba(0, 0, 0, 0.5); color: #4da6ff; border: 1px solid rgba(77, 166, 255, 0.3);
-            padding: 8px 16px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.6); color: #78d2ff; border: 1px solid rgba(79, 172, 254, 0.5);
+            padding: 8px 16px; border-radius: 25px; cursor: pointer; backdrop-filter: blur(8px);
             transition: all 0.3s; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+            box-shadow: 0 0 12px rgba(79, 172, 254, 0.4);
         }
-        #fs-btn:hover { background: #4da6ff; color: #000; box-shadow: 0 0 15px rgba(77, 166, 255, 0.5); }
+        #fs-btn:hover { background: rgba(79, 172, 254, 0.2); color: #fff; box-shadow: 0 0 20px rgba(79, 172, 254, 0.8); }
 
         #loader {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #4da6ff; font-size: 16px; z-index: 20; pointer-events: none;
+            color: #78d2ff; font-size: 18px; z-index: 20; pointer-events: none;
             text-align: center; font-weight: 300; letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(77, 166, 255, 0.5);
+            text-shadow: 0 0 15px rgba(79, 172, 254, 0.8);
         }
 
-        /* 优化 GUI 样式 */
-        .lil-gui { --width: 280px; --name-width: 35%; --background-color: rgba(5, 10, 20, 0.85); --text-color: #eee; --widget-color: #333; --focus-color: #4da6ff; }
-        .lil-gui .title { color: #4da6ff; font-weight: bold; text-align: center; }
+        /* 统一 GUI 风格为科技蓝 */
+        .lil-gui { 
+            --width: 280px; --name-width: 35%; 
+            --background-color: rgba(5, 15, 30, 0.8); /* 深色背景 */
+            --text-color: #e0f2ff; /* 亮蓝白文字 */
+            --widget-color: rgba(30, 60, 90, 0.6); /* 控件背景 */
+            --focus-color: #78d2ff; /* 选中/焦点颜色 */
+            --number-background-color: rgba(10, 30, 50, 0.5); /* 数字输入框背景 */
+            --slider-color: #4facfe; /* 滑块颜色 */
+            --highlight-color: #78d2ff; /* 各种高亮 */
+            backdrop-filter: blur(10px); 
+            border-radius: 10px; 
+            border: 1px solid rgba(79, 172, 254, 0.3); 
+            box-shadow: 0 0 25px rgba(79, 172, 254, 0.2);
+        }
+        .lil-gui .title { 
+            color: #78d2ff; font-weight: bold; text-align: center; 
+            text-shadow: 0 0 10px rgba(79, 172, 254, 0.7); 
+            padding: 12px 0; /* 增加上下边距 */
+        }
+        .lil-gui .controller > label { padding: 8px 0; }
+        .lil-gui .controller.string input[type="text"] { border-color: rgba(79, 172, 254, 0.4); }
+        .lil-gui button { 
+            background: rgba(79, 172, 254, 0.2); 
+            color: #e0f2ff; 
+            border: 1px solid rgba(79, 172, 254, 0.5); 
+            border-radius: 5px; 
+            transition: all 0.2s; 
+        }
+        .lil-gui button:hover { 
+            background: rgba(79, 172, 254, 0.4); 
+            box-shadow: 0 0 8px rgba(79, 172, 254, 0.7); 
+        }
     </style>
 </head>
 <body>
@@ -42,7 +73,7 @@
     <video id="video-input" playsinline></video>
     <div id="canvas-container"></div>
     <button id="fs-btn">进入沉浸模式</button>
-    <div id="loader">正在初始化全息系统...<br><span style="font-size:12px; opacity:0.6;">请允许摄像头权限以启用手势控制</span></div>
+    <div id="loader">正在启动全息引擎...<br><span style="font-size:12px; opacity:0.6;">请允许摄像头权限以启用手势控制</span></div>
 
     <script type="importmap">
         {
@@ -69,48 +100,64 @@
         // --- 配置项 ---
         const config = {
             target: 'earth', 
-            particleCount: 60000, // 6万粒子，性能与效果的平衡点
-            particleSize: 0.04,   // 粒子稍微小一点，配合辉光
-            handSensitivity: 2.5,
+            particleCount: 70000, // 增加粒子数，但尺寸更小，配合辉光效果
+            particleSize: 0.03,   // 极小粒子，靠辉光融合
+            handSensitivity: 3.5, // 手势作用力更强
             autoRotate: true,
-            bloomStrength: 1.0,   // 辉光强度
-            bloomRadius: 0.5
+            bloomStrength: 1.5,   // 辉光强度进一步增加
+            bloomRadius: 0.6,     // 辉光半径
+            bloomThreshold: 0.1   // 辉光阈值，让更亮的粒子发光
         };
 
         // --- 内置 ImprovedNoise (避免 CORS 问题) ---
         class ImprovedNoise{constructor(){const p=[151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];for(let i=0;i<256;i++)p[256+i]=p[i];this.p=p}noise(x,y,z){const p=this.p,fade=t=>t*t*t*(t*(t*6-15)+10),lerp=(t,a,b)=>a+t*(b-a),grad=(hash,x,y,z)=>{const h=hash&15,u=h<8?x:y,v=h<4?y:h===12||h===14?x:z;return((h&1)===0?u:-u)+((h&2)===0?v:-v)};const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);const u=fade(x),v=fade(y),w=fade(z);const A=p[X]+Y,AA=p[A]+Z,AB=p[A+1]+Z,B=p[X+1]+Y,BA=p[B]+Z,BB=p[B+1]+Z;return lerp(w,lerp(v,lerp(u,grad(p[AA],x,y,z),grad(p[BA],x-1,y,z)),lerp(u,grad(p[AB],x,y-1,z),grad(p[BB],x-1,y-1,z))),lerp(v,lerp(u,grad(p[AA+1],x,y,z-1),grad(p[BA+1],x-1,y,z-1)),lerp(u,grad(p[AB+1],x,y-1,z-1),grad(p[BB+1],x-1,y-1,z-1))))}}
 
-        // --- 行星数据 ---
-        const planetData = {
-            'sun':     { name: '☀️ 太阳 Sun', radius: 22, colors: [0xffaa00, 0xff4400, 0xffffff, 0xff0000], type: 'sun' },
-            'mercury': { name: '水星 Mercury', radius: 10, colors: [0xa1a1a1, 0x787878, 0xefefef], type: 'rocky' },
-            'venus':   { name: '金星 Venus', radius: 12, colors: [0xffd700, 0xffa500, 0xeeeeaa], type: 'atmosphere' },
-            'earth':   { name: '🌍 地球 Earth', radius: 13, colors: [0x1133ff, 0x0088ff, 0x228822, 0xffffff], type: 'earth' },
-            'mars':    { name: '火星 Mars', radius: 11, colors: [0xcc3311, 0xaa2200, 0xff6633], type: 'rocky' },
-            'jupiter': { name: '木星 Jupiter', radius: 20, colors: [0xdcb185, 0xbf9b7a, 0x8a6d52, 0xf0e0d0], type: 'banded' },
-            'saturn':  { name: '🪐 土星 Saturn', radius: 17, colors: [0xe3dccb, 0xcabda5], type: 'ringed' },
-            'uranus':  { name: '天王星 Uranus', radius: 15, colors: [0x88ffff, 0x44ccff, 0xccffff], type: 'ringed_tilt' },
-            'neptune': { name: '海王星 Neptune', radius: 15, colors: [0x3333ff, 0x2222dd, 0x5555ff], type: 'atmosphere' },
-            'galaxy':  { name: '🌌 银河系 Galaxy', radius: 30, colors: [0xffaa55, 0xff4488, 0x4422ff, 0xffffff], type: 'galaxy' }
+        // --- 颜色调色板 (核心美化) ---
+        // 借鉴 `rgba(79, 172, 254, ...)`，扩展为渐变蓝色系和点缀色
+        const palette = {
+            // 主色：深邃科技蓝到亮青色
+            blueDark: new THREE.Color(0x0a2040),
+            blueMid: new THREE.Color(0x1a4070),
+            blueLight: new THREE.Color(0x4facfe), // 你提供的核心色
+            cyan: new THREE.Color(0x78d2ff),
+            // 点缀色：少量紫色和纯白
+            purple: new THREE.Color(0x8e44ad),
+            white: new THREE.Color(0xffffff)
         };
+
+        const planetColors = {
+            'sun':     [palette.cyan, palette.blueLight, palette.white, palette.blueLight], // 太阳更像能量核心
+            'mercury': [palette.blueMid, palette.blueDark, palette.blueLight],
+            'venus':   [palette.blueLight, palette.cyan, palette.white],
+            'earth':   [palette.blueLight, palette.cyan, palette.blueMid, palette.white], // 地球有深浅蓝和云
+            'mars':    [palette.blueMid, palette.blueDark, palette.blueLight], // 火星也用蓝色调，只是可能更深沉
+            'jupiter': [palette.blueLight, palette.blueDark, palette.cyan, palette.blueMid], // 木星条纹用不同深浅的蓝
+            'saturn':  [palette.cyan, palette.blueLight, palette.white], // 土星本体和光环
+            'uranus':  [palette.cyan, palette.blueLight, palette.white], // 天王星
+            'neptune': [palette.blueLight, palette.blueMid, palette.cyan], // 海王星
+            'galaxy':  [palette.cyan, palette.blueLight, palette.purple, palette.white] // 银河系可以带点紫色
+        };
+
 
         // --- 场景初始化 ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.005); // 深空黑雾
+        scene.fog = new THREE.FogExp2(0x000000, 0.003); // 更远的雾气，增强空间感
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 45;
+        camera.position.z = 50;
 
         const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // 电影级色调映射
+        renderer.toneMappingExposure = 1.0;
         container.appendChild(renderer.domElement);
 
         // --- 后期处理 (辉光) ---
         const renderScene = new RenderPass(scene, camera);
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.4, 0.85);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 
+                                              config.bloomStrength, config.bloomRadius, config.bloomThreshold);
         const composer = new EffectComposer(renderer);
         composer.addPass(renderScene);
         composer.addPass(bloomPass);
@@ -118,42 +165,67 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
+        controls.autoRotateSpeed = 0.4; // 稍微慢一点的自转
+        controls.enablePan = false;
+        controls.minDistance = 20; // 防止太靠近
+        controls.maxDistance = 100;
 
-        // --- 星空背景 ---
-        function createStars() {
+        // --- 星空背景 (蓝色星尘效果) ---
+        function createStarfield() {
             const starGeo = new THREE.BufferGeometry();
             const positions = [];
-            for(let i=0; i<3000; i++) {
-                const r = 300 + Math.random()*200;
+            const colors = [];
+            for(let i=0; i<8000; i++) { // 更多星尘
+                const r = 250 + Math.random()*250;
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
                 positions.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+                
+                // 星尘颜色也用蓝色系，并随机一些白点
+                const randColor = Math.random() < 0.1 ? palette.white : palette.cyan.clone().lerp(palette.blueLight, Math.random());
+                colors.push(randColor.r, randColor.g, randColor.b);
             }
             starGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const starMat = new THREE.PointsMaterial({color:0xaaaaaa, size:0.7, transparent:true, opacity:0.6});
+            starGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            const starMat = new THREE.PointsMaterial({
+                vertexColors: true,
+                size: 0.8, // 稍微大一点的星尘
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                map: createGlowTexture() // 星尘也用辉光纹理
+            });
             scene.add(new THREE.Points(starGeo, starMat));
         }
-        createStars();
+        createStarfield();
 
         // --- 核心变量 ---
         let mainPoints, mainGeometry, mainMaterial;
-        const targetPositions = [];
-        const baseColors = new Float32Array(config.particleCount * 3);
+        const targetPositions = []; // 存储目标形状的位置
+        const baseColors = new Float32Array(config.particleCount * 3); // 存储粒子原始颜色
+        const currentPositions = new Float32Array(config.particleCount * 3); // 粒子当前位置，用于速度计算
+        const velocities = new Float32Array(config.particleCount * 3); // 粒子速度
         const noise = new ImprovedNoise();
-        let handData = { detected: false, distanceSmooth: 0 };
+        
+        let handData = { 
+            detected: false, 
+            worldPosition: new THREE.Vector3(), // 手指在3D空间的位置
+            distanceRaw: 0 // 手势张开程度
+        };
 
-        // --- 粒子纹理 ---
+        // --- 粒子纹理 (更聚焦的光点) ---
         function createGlowTexture() {
             const canvas = document.createElement('canvas');
-            canvas.width = 32; canvas.height = 32;
+            canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d');
-            const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
             g.addColorStop(0, 'rgba(255,255,255,1)');
-            g.addColorStop(0.2, 'rgba(255,255,255,0.6)');
+            g.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            g.addColorStop(0.6, 'rgba(255,255,255,0.1)'); // 更快的衰减
             g.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = g;
-            ctx.fillRect(0,0,32,32);
+            ctx.fillRect(0,0,64,64);
             return new THREE.CanvasTexture(canvas);
         }
 
@@ -165,15 +237,20 @@
             const colArray = new Float32Array(config.particleCount * 3);
 
             for (let i = 0; i < config.particleCount; i++) {
-                // 初始随机分布
-                const r = 50 * Math.random();
+                // 初始随机分布，但更紧凑，避免开场太散
+                const r = 20 * Math.random(); 
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
                 posArray[i*3] = r * Math.sin(phi) * Math.cos(theta);
                 posArray[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
                 posArray[i*3+2] = r * Math.cos(phi);
                 
-                colArray[i*3] = 1; colArray[i*3+1] = 1; colArray[i*3+2] = 1;
+                colArray[i*3] = palette.blueLight.r; colArray[i*3+1] = palette.blueLight.g; colArray[i*3+2] = palette.blueLight.b;
+                
+                currentPositions[i*3] = posArray[i*3];
+                currentPositions[i*3+1] = posArray[i*3+1];
+                currentPositions[i*3+2] = posArray[i*3+2];
+                velocities[i*3] = 0; velocities[i*3+1] = 0; velocities[i*3+2] = 0;
             }
 
             mainGeometry = new THREE.BufferGeometry();
@@ -192,7 +269,7 @@
 
             mainPoints = new THREE.Points(mainGeometry, mainMaterial);
             scene.add(mainPoints);
-            calculateTarget(config.target);
+            calculateTarget(config.target); // 初始生成目标形状
         }
 
         // --- 形状计算逻辑 ---
@@ -200,108 +277,104 @@
             targetPositions.length = 0;
             const data = planetData[key];
             const radius = data.radius;
-            const colors = data.colors.map(c => new THREE.Color(c));
+            const colors = planetColors[key]; // 使用新的颜色调色板
 
             for (let i = 0; i < config.particleCount; i++) {
                 let x, y, z;
                 let particleColor;
                 
-                // 通用球体参数
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
                 let rFinal = radius;
 
-                // --- 逻辑分支 ---
+                // --- 逻辑分支 (更抽象的形态) ---
                 if (data.type === 'sun') {
-                    // 太阳：动态的、向外喷射的表面
-                    rFinal = radius * (0.9 + Math.random()*0.2);
-                    const n = noise.noise(theta*3, phi*3, i*0.01);
-                    if (n > 0.6) particleColor = colors[3]; // 耀斑
-                    else if (n > 0.3) particleColor = colors[2]; 
-                    else particleColor = colors[0].clone().lerp(colors[1], Math.random());
+                    // 太阳：核心+向外喷射的能量粒子
+                    const isCore = Math.random() > 0.3; // 30%是核心，70%是喷射
+                    if (isCore) {
+                        rFinal = radius * (0.5 + Math.random()*0.3); // 核心区域
+                        particleColor = colors[2].clone().lerp(colors[0], Math.random());
+                    } else {
+                        // 喷射粒子，沿径向散开
+                        rFinal = radius * (1.0 + Math.random()*2.0); // 喷射到更远
+                        particleColor = colors[3].clone().lerp(colors[1], Math.random());
+                    }
                     
                 } else if (data.type === 'earth') {
-                    // 地球：噪点生成大陆
+                    // 地球：分层（陆地、海洋、云层）
                     rFinal = radius;
-                    const nLand = noise.noise(Math.sin(phi)*4, Math.cos(theta)*4, 10);
-                    const nCloud = noise.noise(Math.sin(phi)*6, Math.cos(theta)*6, i*0.1);
-                    const lat = Math.abs(Math.cos(phi)); // 0赤道, 1极地
+                    const nLand = noise.noise(Math.sin(phi)*5, Math.cos(theta)*5, 10);
+                    const nCloud = noise.noise(Math.sin(phi)*8, Math.cos(theta)*8, i*0.1);
+                    const lat = Math.abs(Math.cos(phi));
 
-                    if (nCloud > 0.6) {
-                        rFinal += 0.4; // 云层高一点
-                        particleColor = colors[3]; // 白云
-                    } else if (nLand > 0.55 && lat < 0.9) {
-                        particleColor = colors[2]; // 绿地
-                    } else {
-                        particleColor = colors[0].clone().lerp(colors[1], lat); // 蓝海
-                    }
+                    if (nCloud > 0.65) { rFinal += 0.5; particleColor = colors[3]; } // 云
+                    else if (nLand > 0.55 && lat < 0.9) { particleColor = colors[2]; } // 陆地
+                    else { particleColor = colors[0].clone().lerp(colors[1], lat); } // 海洋
 
                 } else if (data.type === 'banded') {
-                    // 木星：条纹
-                    const lat = Math.cos(phi); // -1 to 1
-                    const band = Math.sin(lat * 20 + noise.noise(theta, 0, 0)*2); // 扭曲条纹
-                    const cIdx = Math.floor((band * 0.5 + 0.5) * (colors.length - 0.1));
-                    particleColor = colors[cIdx];
+                    // 木星：科技感的条纹
+                    const lat = Math.cos(phi);
+                    const bandFactor = Math.sin(lat * 15 + noise.noise(theta*2, 0, 0)*3);
+                    if (bandFactor > 0.5) particleColor = colors[0];
+                    else if (bandFactor > 0) particleColor = colors[1];
+                    else if (bandFactor > -0.5) particleColor = colors[2];
+                    else particleColor = colors[3];
 
                 } else if (data.type === 'ringed' || data.type === 'ringed_tilt') {
-                    // 土星/天王星：光环逻辑
-                    const isRing = Math.random() > 0.65; // 35% 本体, 65% 光环
+                    // 土星/天王星：光环结构
+                    const isRing = Math.random() > 0.4; // 40% 本体，60% 光环
                     
                     if (!isRing) {
-                        rFinal = radius * 0.95; // 本体略小
-                        particleColor = colors[0];
+                        rFinal = radius * 0.95;
+                        particleColor = colors[0].clone().lerp(colors[2], Math.random());
                     } else {
-                        // 光环
-                        const ringR = radius * (1.4 + Math.random() * 1.0);
+                        // 光环粒子
+                        const ringR = radius * (1.3 + Math.random() * 1.0);
                         const ringThick = 0.2;
                         x = ringR * Math.cos(theta);
                         z = ringR * Math.sin(theta);
                         y = (Math.random()-0.5) * ringThick;
 
-                        // 天王星光环是竖着的 (Z轴旋转90度)
+                        // 天王星光环倾斜
                         if (data.type === 'ringed_tilt') {
-                            const temp = x; x = y; y = temp; 
+                            const tempX = x; x = y; y = tempX; // 旋转 90 度
                         }
-
-                        particleColor = colors[1].clone().multiplyScalar(0.7); // 略暗
+                        particleColor = colors[1].clone().lerp(colors[2], Math.random()).multiplyScalar(0.8);
                         targetPositions.push(x, y, z);
                         baseColors[i*3]=particleColor.r; baseColors[i*3+1]=particleColor.g; baseColors[i*3+2]=particleColor.b;
                         continue; 
                     }
 
                 } else if (data.type === 'galaxy') {
-                    // 银河系：旋臂
-                    const armCount = 2;
-                    const spin = i % armCount;
-                    const r = radius * Math.pow(Math.random(), 0.5); // 中心密集
-                    const spiral = theta + r * 0.3 + (spin * Math.PI * 2 / armCount);
+                    // 银河系：抽象旋臂结构
+                    const armCount = 3;
+                    const armOffset = (i % armCount) * Math.PI * 2 / armCount;
+                    const r = radius * Math.pow(Math.random(), 0.7); // 中心更密
+                    const spiral = theta + r * 0.4 + armOffset; // 旋臂形状
                     
                     x = r * Math.cos(spiral);
                     z = r * Math.sin(spiral);
-                    y = (Math.random()-0.5) * (radius - r) * 0.4; // 中心厚
+                    y = (Math.random()-0.5) * (radius - r) * 0.3; // 中间厚
 
                     const dist = r / radius;
-                    if (dist < 0.15) particleColor = colors[3]; // Core
-                    else if (dist < 0.5) particleColor = colors[0];
-                    else if (dist < 0.8) particleColor = colors[1];
-                    else particleColor = colors[2];
+                    if (dist < 0.2) particleColor = colors[3]; // 核心
+                    else if (dist < 0.5) particleColor = colors[0].clone().lerp(colors[1], Math.random()); // 中部
+                    else particleColor = colors[2].clone().lerp(colors[0], Math.random()); // 外部
 
                     targetPositions.push(x, y, z);
                     baseColors[i*3]=particleColor.r; baseColors[i*3+1]=particleColor.g; baseColors[i*3+2]=particleColor.b;
                     continue;
 
                 } else {
-                    // 默认 (岩石/大气)
-                    particleColor = colors[Math.floor(Math.random()*colors.length)];
-                    rFinal = radius * (0.98 + Math.random()*0.04);
+                    // 默认 (其他行星，均匀分布)
+                    particleColor = colors[0].clone().lerp(colors[1], Math.random());
+                    rFinal = radius * (0.95 + Math.random()*0.1);
                 }
 
-                // 转换标准球体坐标
-                if (!x) { // 如果上面没有计算过(比如光环)
-                    x = rFinal * Math.sin(phi) * Math.cos(theta);
-                    y = rFinal * Math.sin(phi) * Math.sin(theta);
-                    z = rFinal * Math.cos(phi);
-                }
+                // 计算最终球体坐标
+                x = rFinal * Math.sin(phi) * Math.cos(theta);
+                y = rFinal * Math.sin(phi) * Math.sin(theta);
+                z = rFinal * Math.cos(phi);
 
                 targetPositions.push(x, y, z);
                 baseColors[i*3] = particleColor.r;
@@ -316,131 +389,4 @@
             document.getElementById('loader').style.display = 'none';
             videoElement.classList.add('active');
             
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                handData.detected = true;
-                const hands = results.multiHandLandmarks;
-                let dist = 0;
-                
-                if (hands.length === 2) {
-                    // 双手距离
-                    const p1 = hands[0][9]; const p2 = hands[1][9];
-                    dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-                } else {
-                    // 单手张开距离 (拇指-小指)
-                    const p1 = hands[0][4]; const p2 = hands[0][20];
-                    dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) * 2.0;
-                }
-                
-                let scale = (dist - 0.1) * config.handSensitivity;
-                handData.distanceSmooth += (scale - handData.distanceSmooth) * 0.1;
-            } else {
-                handData.detected = false;
-                handData.distanceSmooth += (0 - handData.distanceSmooth) * 0.05; // 缓慢归零
-            }
-        }
-
-        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-        hands.onResults(onHandsResults);
-        
-        const cameraUtils = new Camera(videoElement, {
-            onFrame: async () => { await hands.send({image: videoElement}); },
-            width: 320, height: 240
-        });
-
-        // --- 初始化逻辑 (修复顺序问题) ---
-        // 1. 先初始化粒子
-        initMainParticles();
-
-        // 2. 然后启动摄像头
-        cameraUtils.start().catch(err => {
-            console.warn("Camera Init Error:", err);
-            document.getElementById('loader').innerText = "未检测到摄像头，已切换至鼠标演示模式";
-        });
-
-        // 3. 最后初始化 GUI (确保 mainMaterial 存在)
-        const gui = new GUI({ title: '控制面板' });
-        
-        const planetNames = {};
-        for(let k in planetData) planetNames[planetData[k].name] = k;
-        
-        gui.add(config, 'target', planetNames).name('选择天体').onChange(val => {
-            calculateTarget(val);
-        });
-        
-        const f1 = gui.addFolder('效果调整');
-        f1.add(config, 'bloomStrength', 0, 3).name('辉光强度').onChange(v => bloomPass.strength = v);
-        f1.add(config, 'autoRotate').name('自动旋转');
-        // 这里的 mainMaterial 肯定已经存在了
-        f1.add(mainMaterial, 'size', 0.01, 0.1).name('粒子大小');
-
-        // --- 动画循环 ---
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = clock.getElapsedTime();
-            
-            controls.autoRotate = config.autoRotate;
-            controls.update();
-
-            const positions = mainGeometry.attributes.position.array;
-            const colors = mainGeometry.attributes.color.array;
-            
-            // 基础膨胀系数 (手势控制)
-            const scale = 1.0 + handData.distanceSmooth;
-            
-            for(let i=0; i<config.particleCount; i++) {
-                const ix = i*3; const iy = i*3+1; const iz = i*3+2;
-
-                // 获取目标位置并应用缩放
-                let tx = targetPositions[ix] * scale;
-                let ty = targetPositions[iy] * scale;
-                let tz = targetPositions[iz] * scale;
-
-                // 增加微小的呼吸噪点，让静止的星球看起来也有生气
-                const n = noise.noise(targetPositions[ix]*0.1, targetPositions[iy]*0.1, time * 0.2) * 0.5;
-                tx += n; ty += n; tz += n;
-
-                // 太阳特殊效果：表面剧烈翻滚
-                if (config.target === 'sun') {
-                    const sunFlare = Math.sin(time*2 + i)*0.5;
-                    tx += targetPositions[ix] * 0.02 * sunFlare;
-                    ty += targetPositions[iy] * 0.02 * sunFlare;
-                    tz += targetPositions[iz] * 0.02 * sunFlare;
-                }
-
-                // 平滑插值移动
-                positions[ix] += (tx - positions[ix]) * 0.08;
-                positions[iy] += (ty - positions[iy]) * 0.08;
-                positions[iz] += (tz - positions[iz]) * 0.08;
-                
-                // 恢复颜色 (如果有必要的话，这里可以做颜色闪烁逻辑)
-                colors[ix] = baseColors[ix];
-                colors[iy] = baseColors[iy];
-                colors[iz] = baseColors[iz];
-            }
-
-            mainGeometry.attributes.position.needsUpdate = true;
-            mainGeometry.attributes.color.needsUpdate = true;
-
-            composer.render();
-        }
-
-        animate();
-
-        // 窗口自适应
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth/window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
-        });
-        
-        document.getElementById('fs-btn').addEventListener('click', () => {
-             if (!document.fullscreenElement) document.body.requestFullscreen();
-             else document.exitFullscreen();
-        });
-    </script>
-</body>
-</html>
+            if (results.multiHandLandmarks && results.multiHandLandmarks
