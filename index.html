@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Holo-Engine V3 | Inertia & Beauty</title>
+    <title>Holo-Engine V4 | V8 & Galaxy</title>
     <link rel="icon" href="data:;base64,=">
     
     <style>
@@ -24,16 +24,18 @@
             position: absolute;
             bottom: 30px;
             left: 30px;
-            width: 300px;
-            height: 225px;
+            width: 280px;
+            height: 210px;
             border: 1px solid rgba(0, 255, 255, 0.3);
             background: rgba(0, 10, 20, 0.85);
-            border-radius: 4px;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
             backdrop-filter: blur(5px);
             pointer-events: auto;
+            transition: transform 0.3s;
         }
+        #camera-container:hover { transform: scale(1.02); border-color: #00ffff; }
         
         #input-video {
             width: 100%;
@@ -41,9 +43,7 @@
             object-fit: cover;
             transform: scaleX(-1);
             opacity: 0.6;
-            transition: opacity 0.3s;
         }
-        #camera-container:hover #input-video { opacity: 0.9; }
 
         .hud-overlay {
             position: absolute;
@@ -63,7 +63,6 @@
             box-shadow: 0 0 0 2px #555;
             transition: all 0.3s;
         }
-        
         .status-dot.active {
             background-color: #00ff00;
             box-shadow: 0 0 5px #00ff00, 0 0 0 2px rgba(0,255,0,0.3);
@@ -92,17 +91,14 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* --- 自定义 GUI 样式覆盖 --- */
+        /* GUI 样式调整 */
         .lil-gui { 
-            --background-color: rgba(0, 10, 20, 0.8);
-            --text-color: #00ffff;
-            --title-background-color: #003333;
-            --widget-color: #005555;
-            --hover-color: #007777;
-            --focus-color: #00aaaa;
-            --number-color: #00ffff;
-            --string-color: #00ffff;
+            --background-color: rgba(0, 10, 20, 0.9);
+            --text-color: #e0faff;
+            --title-background-color: #004444;
+            --widget-color: #006666;
             font-family: 'Courier New', monospace !important;
+            font-size: 11px;
         }
     </style>
     
@@ -115,10 +111,8 @@
             }
         }
     </script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-
 </head>
 <body>
 
@@ -132,7 +126,7 @@
             <video id="input-video" playsinline></video>
             <div class="hud-overlay">
                 <span id="status-dot" class="status-dot"></span>
-                <span id="status-text">CAMERA OFFLINE</span>
+                <span id="status-text">SYSTEM OFFLINE</span>
                 <br>
                 <span id="gesture-data" style="opacity: 0.6;">WAITING...</span>
             </div>
@@ -147,327 +141,330 @@
         import GUI from 'lil-gui';
 
         // ==========================================
-        // 1. 系统配置与状态 (Config & State)
+        // 1. 配置与状态
         // ==========================================
-        
         const config = {
-            model: 'Engine', // Engine, Quantum, Helix, Knot
+            model: 'V8 Engine', // 默认模型
             lineColor: '#00ffff',
             particleColor: '#0088ff',
-            coreColor: '#ff00aa',
-            particleSize: 0.4,
-            rotationSpeed: 0.5,
-            bloomStrength: 1.2,
-            inertiaDamping: 0.95, // 惯性阻尼，越接近1惯性越大
-            sensitivity: 0.15 // 手势旋转灵敏度
+            accentColor: '#ff0055', // V8 点火颜色
+            particleSize: 0.3,
+            bloomStrength: 1.0,
+            inertiaDamping: 0.96,
+            sensitivity: 0.15,
+            autoRotate: true
         };
 
         const state = {
             handDetected: false,
             mode: 'IDLE',
-            
-            // 惯性系统变量
-            targetRotation: { x: 0, y: 0 }, // 手势的目标位置
-            currentRotation: { x: 0, y: 0 }, // 模型的实际位置
-            velocity: { x: 0, y: 0 }, // 旋转速度（动量）
-            lastHandPos: { x: 0, y: 0 }, // 上一帧手的位置
-            
-            // 缩放
-            targetZoom: 40,
-            currentZoom: 40,
+            targetRotation: { x: 0.5, y: 0.5 }, // 初始角度稍微侧一点，好看
+            currentRotation: { x: 0.5, y: 0.5 },
+            velocity: { x: 0, y: 0 },
+            lastHandPos: { x: 0, y: 0 },
+            targetZoom: 35,
+            currentZoom: 35,
         };
 
         // ==========================================
-        // 2. Three.js 场景初始化
+        // 2. 场景 & 渲染
         // ==========================================
-        
         const scene = new THREE.Scene();
-        // 深空背景
-        scene.fog = new THREE.FogExp2(0x020202, 0.015);
+        scene.fog = new THREE.FogExp2(0x020202, 0.02);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 40;
+        camera.position.z = 35;
 
         const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // 后处理 (Bloom)
         const renderScene = new RenderPass(scene, camera);
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
         bloomPass.threshold = 0.1;
         bloomPass.strength = config.bloomStrength;
-        bloomPass.radius = 0.5;
-
+        bloomPass.radius = 0.4;
         const composer = new EffectComposer(renderer);
         composer.addPass(renderScene);
         composer.addPass(bloomPass);
 
         // ==========================================
-        // 3. 材质与纹理生成 (Assets)
+        // 3. 材质与资源
         // ==========================================
-
-        // 程序化生成发光粒子纹理 (Soft Glow)
+        // 生成柔和粒子纹理
         function createGlowTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
-            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 64, 64);
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
+            const c = document.createElement('canvas'); c.width=64; c.height=64;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(32,32,0,32,32,32);
+            g.addColorStop(0,'rgba(255,255,255,1)');
+            g.addColorStop(0.4,'rgba(255,255,255,0.5)');
+            g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle = g; ctx.fillRect(0,0,64,64);
+            return new THREE.CanvasTexture(c);
         }
         
-        const particleTexture = createGlowTexture();
+        const matLine = new THREE.LineBasicMaterial({ color: config.lineColor, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending });
+        const matPart = new THREE.PointsMaterial({ color: config.particleColor, size: config.particleSize, map: createGlowTexture(), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+        const matAccent = new THREE.PointsMaterial({ color: config.accentColor, size: config.particleSize*1.5, map: createGlowTexture(), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false });
 
-        // 共享材质
-        const materialLine = new THREE.LineBasicMaterial({ 
-            color: config.lineColor, 
-            transparent: true, 
-            opacity: 0.2,
-            blending: THREE.AdditiveBlending
-        });
-        
-        const materialParticles = new THREE.PointsMaterial({ 
-            color: config.particleColor, 
-            size: config.particleSize, 
-            map: particleTexture,
-            transparent: true, 
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        // ==========================================
-        // 4. 模型构建系统 (Model Builders)
-        // ==========================================
-        
-        let currentModelGroup = new THREE.Group();
-        scene.add(currentModelGroup);
-
-        // 通用辅助：创建 线+点 结构
-        function createWirePoints(geometry, pChance = 0.5) {
-            const group = new THREE.Group();
+        // 通用构建函数：将几何体转换为 线框+粒子
+        function makeHoloObj(geometry, pChance = 0.5, matP = matPart) {
+            const g = new THREE.Group();
+            g.add(new THREE.LineSegments(new THREE.WireframeGeometry(geometry), matLine));
             
-            // 线框
-            const wireGeo = new THREE.WireframeGeometry(geometry);
-            const line = new THREE.LineSegments(wireGeo, materialLine);
-            group.add(line);
-
-            // 粒子
-            const posAttr = geometry.attributes.position;
             const pGeo = new THREE.BufferGeometry();
-            const pPos = [];
-            // 随机采样
-            for(let i=0; i<posAttr.count; i++) {
-                if(Math.random() < pChance) {
-                    pPos.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+            const pos = geometry.attributes.position;
+            const pts = [];
+            for(let i=0; i<pos.count; i++) if(Math.random()<pChance) pts.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
+            g.add(new THREE.Points(pGeo, matP));
+            return g;
+        }
+
+        // ==========================================
+        // 4. 模型库 (Model Library)
+        // ==========================================
+        let currentGroup = new THREE.Group();
+        let animatables = []; // 存储需要每帧更新动画的部件 (如活塞)
+        scene.add(currentGroup);
+
+        // --- Model 1: V8 Engine (机械V8) ---
+        function buildV8() {
+            const group = new THREE.Group();
+            animatables = []; // 清空动画列表
+
+            const cylRadius = 1.2;
+            const cylHeight = 4;
+            const spacing = 3;
+            
+            // 构建 8 个气缸
+            for(let side = 0; side < 2; side++) {
+                const sideGroup = new THREE.Group();
+                // V型夹角 (左右各倾斜45度)
+                const angle = (side === 0 ? 1 : -1) * (Math.PI / 4);
+                sideGroup.rotation.z = angle;
+
+                for(let i = 0; i < 4; i++) {
+                    const zPos = (i - 1.5) * spacing;
+                    
+                    // 1. 气缸外壳 (Cylinder Block)
+                    const cylGeo = new THREE.CylinderGeometry(cylRadius, cylRadius, cylHeight, 16, 1, true);
+                    const cylMesh = makeHoloObj(cylGeo, 0.3);
+                    cylMesh.position.set(0, cylHeight/2 + 1, zPos);
+                    sideGroup.add(cylMesh);
+
+                    // 2. 活塞 (Piston) - 这是需要动的
+                    const pistonGeo = new THREE.CylinderGeometry(cylRadius*0.8, cylRadius*0.8, cylHeight*0.8, 16);
+                    const pistonMesh = makeHoloObj(pistonGeo, 0.8, matAccent); // 使用强调色
+                    
+                    // 将活塞存入动画列表
+                    // offset 用于错开点火时间
+                    animatables.push({
+                        mesh: pistonMesh,
+                        type: 'piston',
+                        baseY: cylHeight/2 + 1,
+                        offset: i * 1.5 + (side * 3) // 简单的错开算法
+                    });
+
+                    // 初始位置
+                    pistonMesh.position.set(0, cylHeight/2 + 1, zPos);
+                    sideGroup.add(pistonMesh);
                 }
+                group.add(sideGroup);
             }
-            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
-            const points = new THREE.Points(pGeo, materialParticles);
-            group.add(points);
+
+            // 曲轴 (Crankshaft) - 中心的长杆
+            const shaft = makeHoloObj(new THREE.CylinderGeometry(0.5, 0.5, 14, 8), 0.5);
+            shaft.rotation.x = Math.PI / 2;
+            group.add(shaft);
+
+            // 进气歧管/顶部结构 (装饰)
+            const topStruct = makeHoloObj(new THREE.BoxGeometry(4, 2, 12), 0.2);
+            topStruct.position.y = 5;
+            group.add(topStruct);
 
             return group;
         }
 
-        // --- 模型 A: 行星引擎 (Engine) ---
-        function buildEngine() {
+        // --- Model 2: Galaxy (螺旋星系) ---
+        function buildGalaxy() {
             const group = new THREE.Group();
-            // 太阳轮
-            group.add(createWirePoints(new THREE.TorusGeometry(5, 1, 8, 40), 0.8));
-            // 核心
-            const core = createWirePoints(new THREE.IcosahedronGeometry(3, 1), 1);
-            core.children[1].material = materialParticles.clone(); // 独立材质以便变色
-            core.children[1].material.color.set(config.coreColor);
-            core.name = "core";
+            animatables = [];
+            const count = 3000;
+            const pos = [];
+            const colors = [];
+            const colorObj = new THREE.Color(config.particleColor);
+            const colorCore = new THREE.Color(config.accentColor);
+
+            for(let i=0; i<count; i++){
+                // 3条旋臂
+                const branch = i % 3;
+                const radius = Math.random() * 20 + 1;
+                const spinAngle = radius * 0.5; // 越远转得越多
+                const branchAngle = (branch / 3) * Math.PI * 2;
+                
+                const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2;
+                const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2;
+                const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2;
+
+                const x = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                const y = randomY * (20 - radius) * 0.1; // 中心厚，边缘薄
+                const z = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+                
+                pos.push(x, y, z);
+
+                // 颜色：中心亮，边缘暗
+                const mixedColor = colorCore.clone().lerp(colorObj, radius / 20);
+                colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const mat = new THREE.PointsMaterial({
+                size: config.particleSize,
+                map: createGlowTexture(),
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            group.add(new THREE.Points(geo, mat));
+            
+            // 黑洞核心
+            const core = makeHoloObj(new THREE.SphereGeometry(1.5, 16, 16), 0.2, matAccent);
             group.add(core);
-            // 行星轮
-            for(let i=0; i<3; i++){
-                const angle = (i/3)*Math.PI*2;
-                const p = createWirePoints(new THREE.CylinderGeometry(2, 2, 1, 16), 0.5);
+
+            return group;
+        }
+
+        // --- Model 3: HyperCube (超立方体) ---
+        function buildHyperCube() {
+            const group = new THREE.Group();
+            animatables = [];
+            // 嵌套3个立方体
+            for(let i=0; i<3; i++) {
+                const s = 5 + i * 4;
+                const cube = makeHoloObj(new THREE.BoxGeometry(s,s,s), 0.4 + i*0.2);
+                animatables.push({ mesh: cube, type: 'rotate', speed: (i+1)*0.2 });
+                group.add(cube);
+            }
+            return group;
+        }
+
+        // --- Model 4: Planetary (原行星系统) ---
+        function buildPlanetary() {
+            const group = new THREE.Group();
+            animatables = [];
+            
+            // 太阳
+            group.add(makeHoloObj(new THREE.TorusGeometry(5, 1, 8, 30), 0.6));
+            // 行星架
+            const frame = new THREE.Group();
+            animatables.push({ mesh: frame, type: 'rotate', speed: 0.3 });
+            
+            for(let i=0; i<4; i++){
+                const angle = (i/4)*Math.PI*2;
+                const p = makeHoloObj(new THREE.CylinderGeometry(2,2,1,16), 0.4);
                 p.position.set(Math.cos(angle)*10, Math.sin(angle)*10, 0);
                 p.rotation.x = Math.PI/2;
-                group.add(p);
+                // 行星自转
+                animatables.push({ mesh: p, type: 'rotate', speed: 1.0 });
+                frame.add(p);
             }
-            // 外环
-            group.add(createWirePoints(new THREE.TorusGeometry(15, 0.2, 4, 100), 0.3));
+            group.add(frame);
+            group.add(makeHoloObj(new THREE.TorusGeometry(16, 0.2, 4, 80), 0.2)); // 外环
             return group;
         }
 
-        // --- 模型 B: 量子核心 (Quantum) ---
-        function buildQuantum() {
-            const group = new THREE.Group();
-            const geo1 = new THREE.IcosahedronGeometry(8, 2);
-            const geo2 = new THREE.IcosahedronGeometry(6, 1);
-            group.add(createWirePoints(geo1, 0.4));
-            
-            const inner = createWirePoints(geo2, 0.8);
-            inner.rotation.y = Math.PI/4;
-            inner.name = "inner";
-            group.add(inner);
-
-            // 漂浮粒子云
-            const pGeo = new THREE.BufferGeometry();
-            const pPos = [];
-            for(let i=0; i<1000; i++){
-                const r = 10 + Math.random()*5;
-                const theta = Math.random()*Math.PI*2;
-                const phi = Math.acos(2*Math.random()-1);
-                pPos.push(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
-            }
-            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
-            group.add(new THREE.Points(pGeo, materialParticles));
-            return group;
-        }
-
-        // --- 模型 C: DNA 螺旋 (Helix) ---
-        function buildHelix() {
-            const group = new THREE.Group();
-            const points1 = [];
-            const points2 = [];
-            const steps = 100;
-            const radius = 6;
-            const height = 30;
-            
-            for(let i=0; i<=steps; i++){
-                const t = i/steps;
-                const angle = t * Math.PI * 6;
-                const y = (t - 0.5) * height;
-                
-                points1.push(Math.cos(angle)*radius, y, Math.sin(angle)*radius);
-                points2.push(Math.cos(angle+Math.PI)*radius, y, Math.sin(angle+Math.PI)*radius);
-            }
-            
-            const geo1 = new THREE.BufferGeometry();
-            geo1.setAttribute('position', new THREE.Float32BufferAttribute(points1, 3));
-            const geo2 = new THREE.BufferGeometry();
-            geo2.setAttribute('position', new THREE.Float32BufferAttribute(points2, 3));
-            
-            group.add(new THREE.Points(geo1, materialParticles));
-            group.add(new THREE.Points(geo2, materialParticles.clone()));
-            
-            // 连线
-            const lineGeo = new THREE.BufferGeometry();
-            const linePos = [];
-            for(let i=0; i<steps; i+=2){
-                linePos.push(points1[i*3], points1[i*3+1], points1[i*3+2]);
-                linePos.push(points2[i*3], points2[i*3+1], points2[i*3+2]);
-            }
-            lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3));
-            group.add(new THREE.LineSegments(lineGeo, materialLine));
-            
-            return group;
-        }
-
-        // --- 模型 D: 时空结 (Knot) ---
-        function buildKnot() {
-            const geo = new THREE.TorusKnotGeometry(7, 2, 120, 16);
-            return createWirePoints(geo, 0.6);
-        }
-
-        // 切换模型函数
         function switchModel(name) {
-            scene.remove(currentModelGroup);
-            // 销毁旧模型内存（简易版）
-            currentModelGroup = new THREE.Group();
-            
-            if(name === 'Engine') currentModelGroup = buildEngine();
-            if(name === 'Quantum') currentModelGroup = buildQuantum();
-            if(name === 'Helix') currentModelGroup = buildHelix();
-            if(name === 'Knot') currentModelGroup = buildKnot();
-            
-            scene.add(currentModelGroup);
+            scene.remove(currentGroup);
+            if(name === 'V8 Engine') currentGroup = buildV8();
+            if(name === 'Galaxy') currentGroup = buildGalaxy();
+            if(name === 'HyperCube') currentGroup = buildHyperCube();
+            if(name === 'Planetary') currentGroup = buildPlanetary();
+            scene.add(currentGroup);
         }
 
-        // 初始化默认模型
+        // 初始模型
         switchModel(config.model);
 
+        // ==========================================
+        // 5. GUI 面板
+        // ==========================================
+        const gui = new GUI({ title: 'HOLO-SYSTEM' });
+        gui.domElement.style.top = '20px'; gui.domElement.style.right = '20px';
 
-        // ==========================================
-        // 5. GUI 面板设置 (Controls)
-        // ==========================================
-        const gui = new GUI({ title: 'HOLO-CONTROLS' });
+        gui.add(config, 'model', ['V8 Engine', 'Galaxy', 'HyperCube', 'Planetary']).name('MODEL SELECT').onChange(switchModel);
         
-        // 样式微调
-        gui.domElement.style.position = 'absolute';
-        gui.domElement.style.top = '20px';
-        gui.domElement.style.right = '20px';
-
-        gui.add(config, 'model', ['Engine', 'Quantum', 'Helix', 'Knot'])
-           .name('Structure Type')
-           .onChange(val => switchModel(val));
-
-        const folderLook = gui.addFolder('Visuals');
-        folderLook.addColor(config, 'lineColor').name('Line Color').onChange(c => materialLine.color.set(c));
-        folderLook.addColor(config, 'particleColor').name('Particle Color').onChange(c => {
-            materialParticles.color.set(c);
-            // 更新螺旋体等克隆材质
-            currentModelGroup.traverse(child => {
-                if(child.isPoints) child.material.color.set(c);
-            });
+        const fVisual = gui.addFolder('VISUALS');
+        fVisual.addColor(config, 'lineColor').onChange(c => matLine.color.set(c));
+        fVisual.addColor(config, 'particleColor').onChange(c => {
+            matPart.color.set(c);
+            if(config.model === 'Galaxy') switchModel('Galaxy'); // 星系需要重绘颜色
         });
-        folderLook.add(config, 'particleSize', 0.1, 2.0).name('Particle Size').onChange(s => materialParticles.size = s);
-        folderLook.add(config, 'bloomStrength', 0, 3).name('Glow Strength').onChange(v => bloomPass.strength = v);
-
-        const folderPhys = gui.addFolder('Physics');
-        folderPhys.add(config, 'inertiaDamping', 0.8, 0.99).name('Inertia (Momentum)');
-        folderPhys.add(config, 'sensitivity', 0.05, 0.5).name('Sensitivity');
-
-        // ==========================================
-        // 6. 动画与物理循环 (Animation & Physics)
-        // ==========================================
+        fVisual.addColor(config, 'accentColor').onChange(c => matAccent.color.set(c));
+        fVisual.add(config, 'bloomStrength', 0, 3).onChange(v => bloomPass.strength = v);
         
+        const fPhys = gui.addFolder('PHYSICS');
+        fPhys.add(config, 'inertiaDamping', 0.8, 0.99).name('Friction');
+        fPhys.add(config, 'autoRotate').name('Idle Spin');
+
+        // ==========================================
+        // 6. 核心循环 (Animation)
+        // ==========================================
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-            
-            // --- A. 自动动画 (自转) ---
-            if(state.mode === 'IDLE' && Math.abs(state.velocity.x) < 0.001) {
-                // 如果没有手且没有动量，慢慢自转
-                currentModelGroup.rotation.y += config.rotationSpeed * delta * 0.2;
-            }
+            const time = clock.getElapsedTime();
 
-            // --- B. 惯性物理系统 (Core Physics) ---
-            // 应用速度
-            currentModelGroup.rotation.y += state.velocity.x;
-            currentModelGroup.rotation.x += state.velocity.y;
-
-            // 阻尼 (摩擦力) - 让速度随时间衰减
+            // --- A. 物理与手势 ---
+            // 惯性阻尼
             state.velocity.x *= config.inertiaDamping;
             state.velocity.y *= config.inertiaDamping;
+            
+            // 应用旋转
+            currentGroup.rotation.y += state.velocity.x;
+            currentGroup.rotation.x += state.velocity.y;
 
-            // --- C. 缩放平滑 ---
+            // 自动旋转 (仅当没有手势输入且速度很低时)
+            if(config.autoRotate && !state.handDetected && Math.abs(state.velocity.x) < 0.001) {
+                currentGroup.rotation.y += delta * 0.15;
+            }
+
+            // 平滑缩放
             state.currentZoom += (state.targetZoom - state.currentZoom) * 0.1;
             camera.position.z = state.currentZoom;
 
-            // --- D. 视觉细节更新 ---
-            // 距离淡出
-            const zoomRatio = Math.max(0, Math.min(1, (state.currentZoom - 5) / 30));
-            materialLine.opacity = 0.3 * zoomRatio;
+            // --- B. 模型内部动画 (V8活塞等) ---
+            animatables.forEach(item => {
+                if(item.type === 'piston') {
+                    // V8 活塞运动: sin波形
+                    const yOffset = Math.sin(time * 5 + item.offset) * 1.5;
+                    item.mesh.position.y = item.baseY + yOffset;
+                }
+                else if(item.type === 'rotate') {
+                    item.mesh.rotation.z += delta * item.speed;
+                    item.mesh.rotation.x += delta * item.speed * 0.5;
+                }
+            });
+
+            // 星系整体自旋
+            if(config.model === 'Galaxy') {
+                currentGroup.rotation.z += delta * 0.05;
+            }
+
+            // --- C. 视觉反馈 ---
+            // 距离淡出效果
+            const zoomRatio = Math.max(0, Math.min(1, (state.currentZoom - 5) / 40));
+            matLine.opacity = 0.2 * zoomRatio; // 离得近线框消失，只剩粒子
             
-            // 粒子闪烁 (呼吸感)
-            const time = clock.getElapsedTime();
-            materialParticles.size = config.particleSize + Math.sin(time * 3) * 0.05;
-
-            // 特殊部件旋转
-            if(config.model === 'Engine') {
-               const core = currentModelGroup.getObjectByName('core');
-               if(core) { core.rotation.x -= delta; core.rotation.y -= delta; }
-            }
-            if(config.model === 'Quantum') {
-                const inner = currentModelGroup.getObjectByName('inner');
-                if(inner) { inner.rotation.z += delta; inner.rotation.y -= delta * 0.5; }
-            }
-
             composer.render();
         }
         animate();
@@ -480,9 +477,8 @@
         });
 
         // ==========================================
-        // 7. MediaPipe 手势逻辑
+        // 7. 手势识别 (MediaPipe)
         // ==========================================
-        
         const videoElement = document.getElementById('input-video');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
@@ -496,76 +492,57 @@
             }
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                statusDot.classList.add('active');
                 state.handDetected = true;
+                statusDot.classList.add('active');
+                
                 const hands = results.multiHandLandmarks;
 
                 if (hands.length === 2) {
-                    // --- 双手: 缩放 ---
+                    // 双手缩放
                     state.mode = "ZOOM";
-                    statusText.innerText = "ZOOM ACTIVE";
-                    statusText.style.color = "#00ff00";
-                    
-                    const h1 = hands[0][8], h2 = hands[1][8];
-                    const dist = Math.sqrt(Math.pow(h1.x - h2.x, 2) + Math.pow(h1.y - h2.y, 2));
-                    // 映射距离
-                    const zoomFactor = 1 - Math.min(1, Math.max(0, (dist - 0.1) * 2.5));
-                    state.targetZoom = 10 + (zoomFactor * 50);
-                    
-                    gestureData.innerText = `DEPTH: ${state.targetZoom.toFixed(1)}`;
-
+                    statusText.innerText = "ZOOM MODE";
+                    const d = Math.sqrt(Math.pow(hands[0][8].x-hands[1][8].x,2) + Math.pow(hands[0][8].y-hands[1][8].y,2));
+                    const factor = 1 - Math.min(1, Math.max(0, (d - 0.1) * 2));
+                    state.targetZoom = 5 + (factor * 50); // 近5 远55
+                    gestureData.innerText = `DIST: ${d.toFixed(2)}`;
                 } else {
-                    // --- 单手: 物理旋转 ---
+                    // 单手旋转
                     state.mode = "ROTATE";
-                    statusText.innerText = "ROTATION LINKED";
-                    statusText.style.color = "#00ffff";
-
-                    const wrist = hands[0][9]; // 使用中指根部，比手腕更稳
+                    statusText.innerText = "ROTATE MODE";
+                    const currX = hands[0][9].x;
+                    const currY = hands[0][9].y;
                     
-                    // 计算手势的位移量 (Delta)
-                    const deltaX = (wrist.x - state.lastHandPos.x);
-                    const deltaY = (wrist.y - state.lastHandPos.y);
-
-                    // 只有当手真正移动时才施加力 (消除抖动)
-                    if(Math.abs(deltaX) > 0.002) {
-                        state.velocity.x = deltaX * config.sensitivity * 5; 
+                    const dx = currX - state.lastHandPos.x;
+                    const dy = currY - state.lastHandPos.y;
+                    
+                    if(Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+                         // 给模型施加力
+                        state.velocity.x = dx * config.sensitivity * 8; 
+                        state.velocity.y = dy * config.sensitivity * 8;
                     }
-                    if(Math.abs(deltaY) > 0.002) {
-                        state.velocity.y = deltaY * config.sensitivity * 5;
-                    }
-
-                    // 更新上一帧位置
-                    state.lastHandPos.x = wrist.x;
-                    state.lastHandPos.y = wrist.y;
-
-                    gestureData.innerText = `VEL: ${state.velocity.x.toFixed(3)}`;
+                    
+                    state.lastHandPos = {x: currX, y: currY};
+                    gestureData.innerText = `X:${currX.toFixed(2)} Y:${currY.toFixed(2)}`;
                 }
             } else {
-                // 手势丢失
-                statusDot.classList.remove('active');
                 state.handDetected = false;
-                state.mode = "IDLE";
-                statusText.innerText = "SCANNING SPACE...";
-                statusText.style.color = "#555";
-                gestureData.innerText = "NO SIGNAL";
-                
-                // 重置手势位置记录，防止下次进入时跳变
-                state.lastHandPos = {x:0.5, y:0.5};
+                statusDot.classList.remove('active');
+                statusText.innerText = "SCANNING...";
+                gestureData.innerText = "NO HAND";
+                state.lastHandPos = {x:0.5, y:0.5}; // 重置中心
             }
         }
 
-        // 启动 MediaPipe
         const checkInterval = setInterval(() => {
             if (window.Hands && window.Camera) {
                 clearInterval(checkInterval);
                 const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-                hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+                hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7});
                 hands.onResults(onResults);
-                const cam = new window.Camera(videoElement, { onFrame: async () => await hands.send({image: videoElement}), width: 640, height: 480 });
+                const cam = new window.Camera(videoElement, {onFrame: async () => await hands.send({image: videoElement}), width: 640, height: 480});
                 cam.start();
             }
         }, 500);
-
     </script>
 </body>
 </html>
