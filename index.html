@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Holo-Engine | Gesture Control</title>
+    <link rel="icon" href="data:;base64,=">
+    
     <style>
         /* --- 基础样式 --- */
         body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Courier New', Courier, monospace; }
@@ -13,7 +15,7 @@
         #ui-layer {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* 让鼠标事件穿透到 3D Canvas */
+            pointer-events: none;
             z-index: 10;
         }
 
@@ -22,7 +24,7 @@
             position: absolute;
             bottom: 30px;
             left: 30px;
-            width: 320px; /* 较大的视频窗口 */
+            width: 320px;
             height: 240px;
             border: 2px solid #00ffff;
             background: rgba(0, 20, 40, 0.8);
@@ -30,18 +32,17 @@
             overflow: hidden;
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
             transition: all 0.3s ease;
-            pointer-events: auto; /* 允许视频区域交互 */
+            pointer-events: auto;
         }
         
         #input-video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* 镜像翻转，符合直觉 */
+            transform: scaleX(-1);
             opacity: 0.8;
         }
 
-        /* 视频上的覆盖层 UI */
         .hud-overlay {
             position: absolute;
             top: 10px; left: 10px;
@@ -107,18 +108,20 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "@mediapipe/hands": "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js",
-                "@mediapipe/camera_utils": "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
         }
     </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
 </head>
 <body>
 
     <div id="loader">
         <div class="spinner"></div>
-        <div id="loading-text">INITIALIZING SYSTEM...</div>
+        <div id="loading-text">SYSTEM INITIALIZING...<br><span style="font-size:12px; opacity:0.6">(Please Allow Camera Access)</span></div>
     </div>
 
     <div id="ui-layer">
@@ -131,7 +134,7 @@
             <video id="input-video" playsinline></video>
             <div class="hud-overlay">
                 <span id="status-dot" class="status-dot"></span>
-                <span id="status-text">SYSTEM STANDBY</span>
+                <span id="status-text">WAITING FOR CAMERA</span>
                 <br>
                 <span id="gesture-data" style="font-size: 10px; opacity: 0.7;">NO INPUT</span>
             </div>
@@ -144,42 +147,39 @@
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-        // --- 1. 全局变量与状态 ---
+        // --- 1. 全局状态 ---
         const state = {
             handDetected: false,
-            mode: 'IDLE', // IDLE, ROTATE, ZOOM
+            mode: 'IDLE',
             targetRotation: { x: 0, y: 0 },
             currentRotation: { x: 0, y: 0 },
-            targetZoom: 40, // 摄像机Z轴位置
+            targetZoom: 40,
             currentZoom: 40,
-            handDistance: 0
         };
 
-        // --- 2. 场景初始化 (Three.js) ---
+        // --- 2. Three.js 场景设置 ---
         const scene = new THREE.Scene();
-        // 添加一点环境雾
         scene.fog = new THREE.FogExp2(0x000000, 0.01);
-
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.z = 40;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true }); // Post-processing handles AA usually
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 性能优化
         document.body.appendChild(renderer.domElement);
 
-        // 后处理 (Bloom 辉光效果)
+        // 后处理
         const renderScene = new RenderPass(scene, camera);
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.1;
-        bloomPass.strength = 1.2; // 辉光强度
+        bloomPass.threshold = 0.15;
+        bloomPass.strength = 1.0;
         bloomPass.radius = 0.5;
 
         const composer = new EffectComposer(renderer);
         composer.addPass(renderScene);
         composer.addPass(bloomPass);
 
-        // --- 3. 机械结构生成 (The Procedural Engine) ---
+        // --- 3. 机械结构生成 ---
         const engineGroup = new THREE.Group();
         scene.add(engineGroup);
 
@@ -187,139 +187,103 @@
         const materialParticles = new THREE.PointsMaterial({ color: 0x00aaff, size: 0.15, transparent: true, opacity: 0.8 });
         const materialCore = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.1 });
 
-        // 辅助函数：创建齿轮
         function createGear(radius, tube, radialSegments, tubularSegments, arc, pColor) {
             const group = new THREE.Group();
-            
-            // 线框几何体
             const geometry = new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments, arc);
+            
+            // 线框
             const wireframe = new THREE.WireframeGeometry(geometry);
             const line = new THREE.LineSegments(wireframe, materialLine);
             group.add(line);
 
-            // 粒子几何体 (使用相同的形状)
+            // 粒子
             const particlesGeometry = new THREE.BufferGeometry();
             const posArray = [];
             const posAttr = geometry.attributes.position;
-            // 随机采样一些点作为粒子
             for(let i=0; i < posAttr.count; i++) {
-                if(Math.random() > 0.5) {
+                if(Math.random() > 0.4) {
                     posArray.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
                 }
             }
             particlesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(posArray, 3));
             const pMat = materialParticles.clone();
             pMat.color.setHex(pColor);
-            const particles = new THREE.Points(particlesGeometry, pMat);
-            group.add(particles);
+            group.add(new THREE.Points(particlesGeometry, pMat));
 
             return group;
         }
 
-        // 构建：太阳齿轮 (中心)
+        // 生成组件
         const sunGear = createGear(5, 1, 16, 50, Math.PI * 2, 0x00ffff);
         engineGroup.add(sunGear);
 
-        // 构建：核心能量球
+        // 核心
         const coreGeo = new THREE.IcosahedronGeometry(3, 2);
         const coreMesh = new THREE.Mesh(coreGeo, materialCore);
-        // 添加核心粒子
         const coreParticlesGeo = new THREE.BufferGeometry();
         const corePos = [];
-        for(let i=0; i<1000; i++){
+        for(let i=0; i<800; i++){
             const r = 3 * Math.random();
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
-            corePos.push(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
+            corePos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
         }
         coreParticlesGeo.setAttribute('position', new THREE.Float32BufferAttribute(corePos, 3));
-        const coreParticles = new THREE.Points(coreParticlesGeo, new THREE.PointsMaterial({color: 0xff00ff, size: 0.1}));
+        const coreParticles = new THREE.Points(coreParticlesGeo, new THREE.PointsMaterial({color: 0xff00ff, size: 0.12}));
         engineGroup.add(coreMesh);
         engineGroup.add(coreParticles);
 
-
-        // 构建：行星齿轮 (周围)
+        // 行星
         const planets = [];
-        const planetCount = 4;
-        const orbitRadius = 12;
-        
-        for(let i=0; i<planetCount; i++) {
+        for(let i=0; i<4; i++) {
             const planet = createGear(2.5, 0.5, 8, 30, Math.PI * 2, 0x0088ff);
-            const angle = (i / planetCount) * Math.PI * 2;
-            planet.position.set(Math.cos(angle) * orbitRadius, Math.sin(angle) * orbitRadius, 0);
-            
-            // 创建一个父容器来处理公转
+            const angle = (i / 4) * Math.PI * 2;
+            planet.position.set(Math.cos(angle) * 12, Math.sin(angle) * 12, 0);
             const pivot = new THREE.Group();
-            pivot.rotation.z = angle; // 初始角度
+            pivot.rotation.z = angle;
             pivot.add(planet);
             engineGroup.add(pivot);
-            
-            // 我们把pivot存起来方便公转，把planet存起来方便自转
             planets.push({ pivot: pivot, mesh: planet });
         }
 
-        // 构建：外环 (Ring Gear)
         const ringGear = createGear(16, 0.2, 8, 100, Math.PI * 2, 0x0044aa);
         engineGroup.add(ringGear);
-
         const outerRing = createGear(18, 0.1, 4, 120, Math.PI * 2, 0x00ffff);
         outerRing.rotation.x = Math.PI / 2;
         engineGroup.add(outerRing);
 
-
         // --- 4. 动画循环 ---
         const clock = new THREE.Clock();
-
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-            const time = clock.getElapsedTime();
 
-            // 1. 机械结构自发动画 (Idle Animation)
-            // 太阳齿轮自转
+            // 动画逻辑
             sunGear.rotation.z -= 0.5 * delta;
             coreMesh.rotation.y += 0.2 * delta;
-            coreMesh.rotation.z += 0.1 * delta;
             coreParticles.rotation.y -= 0.3 * delta;
-
-            // 行星公转与自转
-            planets.forEach(p => {
-                p.mesh.rotation.z += 1.0 * delta; // 自转
-                // 整个组旋转已经在外部逻辑处理，或者在这里加微小的公转
-            });
-            // 外环
+            planets.forEach(p => p.mesh.rotation.z += 1.0 * delta);
             ringGear.rotation.z += 0.1 * delta;
             outerRing.rotation.z += 0.05 * delta;
 
-            // 2. 交互平滑处理 (Lerp)
-            // 旋转平滑
+            // 交互插值
             state.currentRotation.x += (state.targetRotation.x - state.currentRotation.x) * 0.1;
             state.currentRotation.y += (state.targetRotation.y - state.currentRotation.y) * 0.1;
-            
-            // 将旋转应用到整个引擎组
-            engineGroup.rotation.y = state.currentRotation.x; // 手左右移动 -> 模型Y轴转
-            engineGroup.rotation.x = state.currentRotation.y; // 手上下移动 -> 模型X轴转
+            engineGroup.rotation.y = state.currentRotation.x; 
+            engineGroup.rotation.x = state.currentRotation.y;
 
-            // 缩放/推进平滑
             state.currentZoom += (state.targetZoom - state.currentZoom) * 0.1;
             camera.position.z = state.currentZoom;
 
-            // 3. 视觉反馈：根据距离调整粒子与线的透明度
-            // 当拉得很近时(Zoom < 10)，线条消失，只剩粒子
-            const zoomRatio = Math.max(0, Math.min(1, (state.currentZoom - 5) / 20)); // 0 = close, 1 = far
+            // 视觉反馈
+            const zoomRatio = Math.max(0, Math.min(1, (state.currentZoom - 5) / 20));
             materialLine.opacity = 0.3 * zoomRatio;
-            materialCore.opacity = 0.1 + (1 - zoomRatio) * 0.2; // 越近核心越亮
+            materialCore.opacity = 0.1 + (1 - zoomRatio) * 0.2;
 
-            // 渲染
             composer.render();
         }
         animate();
 
-        // 窗口大小调整
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -327,126 +291,93 @@
             composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // --- 5. MediaPipe Hands 集成 ---
+        // --- 5. MediaPipe Hands 逻辑 ---
         const videoElement = document.getElementById('input-video');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         const gestureData = document.getElementById('gesture-data');
+        const loader = document.getElementById('loader');
+        const loadingText = document.getElementById('loading-text');
 
         function onResults(results) {
-            // 隐藏 Loading
-            document.getElementById('loader').style.opacity = 0;
-            setTimeout(() => document.getElementById('loader').style.display = 'none', 1000);
+            // 第一次成功识别后隐藏 Loading
+            if(loader.style.display !== 'none') {
+                loader.style.opacity = 0;
+                setTimeout(() => loader.style.display = 'none', 500);
+            }
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 statusDot.classList.add('active');
                 state.handDetected = true;
-                
                 const hands = results.multiHandLandmarks;
 
-                // 逻辑分支：单手 vs 双手
                 if (hands.length === 2) {
-                    // --- 双手模式：缩放 (Zoom) ---
                     state.mode = "ZOOM";
-                    statusText.innerText = "MODE: ZOOM LINKED";
-
-                    // 获取两手食指指尖 (Index Finger Tip is landmark 8)
-                    const hand1 = hands[0][8];
-                    const hand2 = hands[1][8];
-
-                    // 计算屏幕距离 (简单的欧几里得距离)
-                    const dist = Math.sqrt(
-                        Math.pow(hand1.x - hand2.x, 2) + 
-                        Math.pow(hand1.y - hand2.y, 2)
-                    );
-
-                    // 映射距离到摄像机 Z 轴
-                    // 距离通常在 0.1 到 0.8 之间
-                    // 我们希望：手拉开(dist大) -> 摄像机推近(Z小) -> 放大
-                    // 手合拢(dist小) -> 摄像机拉远(Z大) -> 缩小
-                    // 调整映射公式以获得最佳手感
-                    const zoomFactor = 1 - Math.min(1, Math.max(0, (dist - 0.1) * 2)); 
-                    // zoomFactor 0(远) - 1(近)
-                    
-                    // 目标Z轴: 近5， 远60
+                    statusText.innerText = "ZOOM LINKED";
+                    const h1 = hands[0][8], h2 = hands[1][8];
+                    const dist = Math.sqrt(Math.pow(h1.x - h2.x, 2) + Math.pow(h1.y - h2.y, 2));
+                    const zoomFactor = 1 - Math.min(1, Math.max(0, (dist - 0.1) * 2));
                     state.targetZoom = 5 + (zoomFactor * 55);
-                    
-                    gestureData.innerText = `DIST: ${dist.toFixed(2)} | Z: ${state.targetZoom.toFixed(0)}`;
-
+                    gestureData.innerText = `ZOOM: ${state.targetZoom.toFixed(0)}`;
                 } else {
-                    // --- 单手模式：旋转 (Rotate) ---
                     state.mode = "ROTATE";
-                    statusText.innerText = "MODE: ROTATION LINKED";
-
-                    const hand = hands[0];
-                    const wrist = hand[0]; // 手腕坐标
-
-                    // 映射坐标 (MediaPipe x/y 是 0-1)
-                    // x: 0(left) - 1(right). 我们希望 0.5 是中心
-                    // y: 0(top) - 1(bottom).
-                    
-                    const x = (wrist.x - 0.5) * 4; // 放大系数，增加灵敏度
+                    statusText.innerText = "ROTATION LINKED";
+                    const wrist = hands[0][0];
+                    const x = (wrist.x - 0.5) * 4;
                     const y = (wrist.y - 0.5) * 4;
-
                     state.targetRotation.x = x;
                     state.targetRotation.y = y;
-
-                    gestureData.innerText = `ROT X: ${x.toFixed(2)} | ROT Y: ${y.toFixed(2)}`;
+                    gestureData.innerText = `X: ${x.toFixed(2)} Y: ${y.toFixed(2)}`;
                 }
-
             } else {
                 statusDot.classList.remove('active');
                 state.handDetected = false;
-                state.mode = "IDLE";
-                statusText.innerText = "SEARCHING TARGET...";
-                gestureData.innerText = "NO SIGNAL";
-                
-                // 自动复位 (可选，或者保持最后姿势)
-                // state.targetRotation.x = 0;
-                // state.targetRotation.y = 0;
-                state.targetZoom = 40; // 闲置时自动拉远看全貌
+                statusText.innerText = "SCANNING...";
+                gestureData.innerText = "NO HAND";
             }
         }
 
-        // 动态加载 MediaPipe (因为是 CDN)
-        // 注意：MediaPipe 库比较大，加载需要时间
-        async function initMediaPipe() {
-            // 这里我们假设全局变量已由 CDN 脚本注入
-            // 在实际工程中最好用 NPM import
-            // 等待 window.Hands 可用
-            const checkLibrary = setInterval(() => {
-                if (window.Hands) {
-                    clearInterval(checkLibrary);
-                    startHands();
-                }
-            }, 100);
-        }
+        // 初始化 MediaPipe
+        console.log("正在加载 MediaPipe...");
+        loadingText.innerText = "LOADING AI MODELS...";
 
-        function startHands() {
-            const hands = new window.Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-            }});
-            
-            hands.setOptions({
-                maxNumHands: 2,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.7,
-                minTrackingConfidence: 0.7
-            });
-            
-            hands.onResults(onResults);
+        // 检查全局变量是否存在
+        const checkInterval = setInterval(() => {
+            if (window.Hands && window.Camera) {
+                clearInterval(checkInterval);
+                console.log("MediaPipe 加载成功，正在启动摄像头...");
+                loadingText.innerText = "STARTING CAMERA...";
+                
+                const hands = new window.Hands({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }});
+                
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+                
+                hands.onResults(onResults);
 
-            const cameraUtils = new window.Camera(videoElement, {
-                onFrame: async () => {
-                    await hands.send({image: videoElement});
-                },
-                width: 640,
-                height: 480
-            });
-            cameraUtils.start();
-        }
-
-        initMediaPipe();
+                const cameraUtils = new window.Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480
+                });
+                
+                cameraUtils.start()
+                    .then(() => console.log("摄像头启动成功"))
+                    .catch(e => {
+                        console.error("摄像头启动失败:", e);
+                        loadingText.innerText = "CAMERA ERROR: Check Permission or HTTPS";
+                        loadingText.style.color = "red";
+                    });
+            }
+        }, 500);
 
     </script>
 </body>
