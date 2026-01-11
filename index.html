@@ -2,357 +2,375 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Holo-Engine V5 | Ultra Density</title>
-    <link rel="icon" href="data:;base64,=">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>客房查房终端</title>
+    <script src="https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
-        /* --- 基础样式 --- */
-        body { margin: 0; overflow: hidden; background-color: #010101; font-family: 'Courier New', Courier, monospace; }
-        canvas { display: block; }
-        
-        /* --- UI 层 --- */
-        #ui-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 10;
+        :root {
+            --primary: #07C160; /* 微信绿 */
+            --danger: #FA5151;
+            --excel: #217346;   /* Excel绿 */
+            --bg: #f7f7f7;
+            --card: #ffffff;
+            --text: #333333;
         }
 
-        /* --- 视频操控台 --- */
-        #camera-container {
-            position: absolute;
-            bottom: 30px; left: 30px;
-            width: 260px; height: 195px;
-            border: 1px solid rgba(0, 255, 255, 0.2);
-            background: rgba(0, 5, 10, 0.8);
-            border-radius: 8px; overflow: hidden;
-            backdrop-filter: blur(5px);
-            pointer-events: auto; transition: all 0.3s;
-        }
-        #camera-container:hover { border-color: #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
-        
-        #input-video {
-            width: 100%; height: 100%; object-fit: cover;
-            transform: scaleX(-1); opacity: 0.5;
+        body {
+            font-family: -apple-system, "Helvetica Neue", Helvetica, "Segoe UI", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        .hud-overlay {
-            position: absolute; top: 10px; left: 10px;
-            color: #00ffff; font-size: 10px; letter-spacing: 1px;
-            text-shadow: 0 0 2px rgba(0,255,255,0.5);
+        /* 标题区 */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
         }
-        .status-dot {
-            display: inline-block; width: 5px; height: 5px;
-            background-color: #333; border-radius: 50%; margin-right: 5px;
-            box-shadow: 0 0 0 1px #555; transition: all 0.3s;
-        }
-        .status-dot.active { background-color: #00ff00; box-shadow: 0 0 5px #00ff00, 0 0 0 1px rgba(0,255,0,0.3); }
+        .header h2 { margin: 0; font-size: 1.2rem; }
+        .header p { margin: 5px 0 0; color: #666; font-size: 0.9rem; }
 
-        /* --- 加载遮罩 --- */
-        #loader {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: #00ffff;
-            z-index: 100; transition: opacity 1s;
+        /* 卡片通用样式 */
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
         }
-        .spinner {
-            width: 40px; height: 40px; border: 2px solid #002222;
-            border-top: 2px solid #00ffff; border-radius: 50%;
-            animation: spin 0.8s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* GUI */
-        .lil-gui { font-family: 'Courier New' !important; font-size: 11px; }
+        /* 第一步：输入房号 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="number"] {
+            flex: 1;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            text-align: center;
+        }
+        .btn-start {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 25px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        /* 第二步：检查清单 (默认隐藏) */
+        #checklist-section {
+            display: none; /* 初始隐藏 */
+        }
+
+        .current-room-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* 检查细则列表 */
+        .checklist-items {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px dashed #ccc;
+        }
+        .checklist-items li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95rem;
+            color: #555;
+            display: flex;
+            align-items: center;
+        }
+        .checklist-items li::before {
+            content: "👁️";
+            margin-right: 8px;
+        }
+
+        /* 备注栏 */
+        textarea {
+            width: 100%;
+            height: 120px; /* 大一点 */
+            padding: 15px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: none;
+            margin-bottom: 20px;
+            font-family: inherit;
+        }
+
+        /* 底部操作按钮 */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            flex: 1;
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-pass { background-color: var(--primary); }
+        .btn-fail { background-color: var(--danger); }
+
+        /* 历史记录与导出区 */
+        .history-section {
+            margin-top: auto;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .log-item {
+            font-size: 0.85rem;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .log-pass { color: var(--primary); }
+        .log-fail { color: var(--danger); font-weight: bold; }
+
+        /* 导出按钮组 */
+        .export-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-tool {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .btn-copy { background: #333; }
+        .btn-excel { background: var(--excel); }
+
     </style>
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "lil-gui": "https://unpkg.com/three@0.160.0/examples/jsm/libs/lil-gui.module.min.js"
-            }
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="loader">
-        <div class="spinner"></div>
-        <div id="loading-text">INITIALIZING HIGH-DENSITY SYSTEMS...</div>
+<div class="header">
+    <h2>🧹 客房快速查房</h2>
+    <p>今日已查: <span id="count">0</span> 间</p>
+</div>
+
+<div class="card" id="input-section">
+    <label style="display:block; margin-bottom:10px; font-weight:bold;">请输入房号：</label>
+    <div class="input-group">
+        <input type="number" id="roomInput" placeholder="例如: 805">
+        <button class="btn-start" onclick="startCheck()">开始检查</button>
+    </div>
+</div>
+
+<div class="card" id="checklist-section">
+    <div class="current-room-display">
+        正在检查: <span id="displayRoomNumber">--</span>
     </div>
 
-    <div id="ui-layer">
-        <div id="camera-container">
-            <video id="input-video" playsinline></video>
-            <div class="hud-overlay">
-                <span id="status-dot" class="status-dot"></span>
-                <span id="status-text">OFFLINE</span><br>
-                <span id="gesture-data" style="opacity: 0.6;">WAITING...</span>
-            </div>
-        </div>
+    <div style="font-weight:bold; margin-bottom:10px; color:#666;">📝 核心检查项：</div>
+    <ul class="checklist-items">
+        <li>门窗锁闭是否正常，无异响</li>
+        <li>床铺平整，无毛发，床单无污渍</li>
+        <li>卫生间台面干燥，镜面无水渍</li>
+        <li>毛巾、浴巾、地巾配备齐全</li>
+        <li>马桶冲水正常，无异味，纸品已补</li>
+        <li>电器（电视/灯光/空调/吹风机）可运行</li>
+        <li>迷你吧酒水单与实物一致</li>
+        <li>地面地毯洁净，无明显碎屑</li>
+    </ul>
+
+    <label style="font-weight:bold; display:block; margin-bottom:8px;">备注/问题描述 (选填)：</label>
+    <textarea id="remarks" placeholder="在这里输入问题详情，支持手机语音输入..."></textarea>
+
+    <div class="action-buttons">
+        <button class="btn btn-fail" onclick="submitResult('fail')">❌ 不合格</button>
+        <button class="btn btn-pass" onclick="submitResult('pass')">✅ 合格 (下一间)</button>
+    </div>
+</div>
+
+<div class="history-section">
+    <div style="font-weight:bold; margin-bottom:10px;">最近记录：</div>
+    <div id="log-list">
     </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-        import GUI from 'lil-gui';
+    <div class="export-group">
+        <button class="btn-tool btn-copy" onclick="copyReport()">📋 复制微信文本</button>
+        <button class="btn-tool btn-excel" onclick="exportExcel()">📥 导出 Excel</button>
+    </div>
+</div>
 
-        // ========================= CONFIG & STATE =========================
-        const config = {
-            model: 'V8 Engine', 
-            lineColor: '#00ffff', particleColor: '#0088ff', accentColor: '#ff0055',
-            particleSize: 0.35, bloomStrength: 1.1,
-            inertiaDamping: 0.96, sensitivity: 0.15, autoRotate: true
+<script>
+    // 全局变量存储今日数据
+    let inspections = [];
+    let currentRoom = "";
+
+    // 1. 开始检查逻辑
+    function startCheck() {
+        const input = document.getElementById('roomInput');
+        const roomVal = input.value.trim();
+
+        if (!roomVal) {
+            alert("请输入房号！");
+            return;
+        }
+
+        currentRoom = roomVal;
+
+        // 切换界面
+        document.getElementById('displayRoomNumber').innerText = currentRoom;
+        document.getElementById('input-section').style.display = 'none';
+        document.getElementById('checklist-section').style.display = 'block';
+    }
+
+    // 2. 提交结果逻辑
+    function submitResult(status) {
+        const remarks = document.getElementById('remarks').value;
+
+        // 保存数据
+        const record = {
+            room: currentRoom,
+            status: status, // 'pass' or 'fail'
+            remarks: remarks,
+            time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})
         };
 
-        const state = {
-            handDetected: false, mode: 'IDLE',
-            targetRotation: { x:0.3, y:0.3 }, currentRotation: { x:0.3, y:0.3 },
-            velocity: { x:0, y:0 }, lastHandPos: { x:0, y:0 },
-            targetZoom: 40, currentZoom: 40,
-        };
+        inspections.push(record);
 
-        // ========================= RENDERER SETUP =========================
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x010101, 0.015);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.z = 40;
+        // 更新界面UI
+        addLogToDisplay(record);
+        document.getElementById('count').innerText = inspections.length;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比以保证性能
-        document.body.appendChild(renderer.domElement);
+        // 重置表单，准备下一间
+        resetForm();
+    }
 
-        const renderScene = new RenderPass(scene, camera);
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.1; bloomPass.strength = config.bloomStrength; bloomPass.radius = 0.5;
-        const composer = new EffectComposer(renderer);
-        composer.addPass(renderScene); composer.addPass(bloomPass);
+    // 3. 重置表单逻辑
+    function resetForm() {
+        document.getElementById('roomInput').value = '';
+        document.getElementById('remarks').value = '';
+        currentRoom = "";
+        document.getElementById('checklist-section').style.display = 'none';
+        document.getElementById('input-section').style.display = 'block';
+        document.getElementById('roomInput').focus();
+    }
 
-        // ========================= MATERIALS =========================
-        function createGlowTexture() {
-            const c=document.createElement('canvas'); c.width=64; c.height=64; const ctx=c.getContext('2d');
-            const g=ctx.createRadialGradient(32,32,0,32,32,32);
-            g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.3,'rgba(255,255,255,0.6)'); g.addColorStop(1,'rgba(0,0,0,0)');
-            ctx.fillStyle=g; ctx.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);
+    // 辅助：显示日志
+    function addLogToDisplay(record) {
+        const list = document.getElementById('log-list');
+        const div = document.createElement('div');
+        div.className = 'log-item';
+
+        const statusText = record.status === 'pass'
+            ? '<span class="log-pass">合格</span>'
+            : '<span class="log-fail">不合格</span>';
+
+        let remarkText = record.remarks ? ` - ${record.remarks}` : "";
+
+        div.innerHTML = `
+                <span>${record.time} 房号 <b>${record.room}</b></span>
+                <span>${statusText}${remarkText}</span>
+            `;
+
+        list.insertBefore(div, list.firstChild);
+    }
+
+    // 4. 复制日报逻辑 (纯文本)
+    function copyReport() {
+        if (inspections.length === 0) {
+            alert("无数据！");
+            return;
         }
-        const pTex = createGlowTexture();
-        const matLine = new THREE.LineBasicMaterial({ color: config.lineColor, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending });
-        const matPart = new THREE.PointsMaterial({ color: config.particleColor, size: config.particleSize, map: pTex, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
-        const matAccent = new THREE.PointsMaterial({ color: config.accentColor, size: config.particleSize*1.6, map: pTex, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false });
-
-        // 核心构建函数：几何体 -> 高密度粒子化
-        function makeHoloObj(geometry, pChance = 0.9, matP = matPart) {
-            const g = new THREE.Group();
-            g.add(new THREE.LineSegments(new THREE.WireframeGeometry(geometry), matLine));
-            const pGeo = new THREE.BufferGeometry(); const pos = geometry.attributes.position; const pts = [];
-            // pChance 越高，粒子越密
-            for(let i=0; i<pos.count; i++) if(Math.random()<pChance) pts.push(pos.getX(i),pos.getY(i),pos.getZ(i));
-            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
-            g.add(new THREE.Points(pGeo, matP)); return g;
-        }
-
-        // ========================= MODEL BUILDERS (High Density) =========================
-        let currentGroup = new THREE.Group();
-        let animatables = [];
-        scene.add(currentGroup);
-
-        // --- 1. V8 Engine (机械动态) ---
-        function buildV8() {
-            const group = new THREE.Group(); animatables = [];
-            for(let side=0; side<2; side++) {
-                const sGroup = new THREE.Group(); sGroup.rotation.z = (side===0?1:-1)*(Math.PI/4);
-                for(let i=0; i<4; i++) {
-                    const z = (i-1.5)*3.5;
-                    // 提高气缸体粒子密度 (0.85)
-                    const block = makeHoloObj(new THREE.CylinderGeometry(1.4,1.4,4.5,16,2,true), 0.85);
-                    block.position.set(0, 3, z); sGroup.add(block);
-                    // 活塞使用强调色
-                    const piston = makeHoloObj(new THREE.CylinderGeometry(1,1,3.5,16), 0.9, matAccent);
-                    animatables.push({ mesh:piston, type:'piston', baseY:3, offset: i*1.5+(side*3) });
-                    piston.position.set(0,3,z); sGroup.add(piston);
-                }
-                group.add(sGroup);
-            }
-            group.add(makeHoloObj(new THREE.CylinderGeometry(0.6,0.6,16,12), 0.6)); // 曲轴
-            return group;
-        }
-
-        // --- 2. Galaxy Dense (超高密度星系) ---
-        function buildGalaxy() {
-            const group = new THREE.Group(); animatables = [];
-            const count = 12000; // 粒子数量极大提升
-            const pos=[], colors=[]; const c1=new THREE.Color(config.particleColor), c2=new THREE.Color(config.accentColor);
-            for(let i=0; i<count; i++){
-                const branch = i%4; // 4条旋臂
-                const r = Math.random()*25+1;
-                const angle = (branch/4)*Math.PI*2 + r*0.4;
-                const spread = (Math.random()-0.5) * (r/25) * 6; 
-                const x = Math.cos(angle)*r + spread;
-                const y = (Math.random()-0.5) * (25-r)*0.3;
-                const z = Math.sin(angle)*r + spread;
-                pos.push(x,y,z);
-                const cM = c2.clone().lerp(c1, r/25 + Math.random()*0.2);
-                colors.push(cM.r,cM.g,cM.b);
-            }
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
-            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
-            const mat = matPart.clone(); mat.vertexColors = true; mat.size = config.particleSize * 0.8; // 星系粒子稍微小一点，但数量多
-            group.add(new THREE.Points(geo, mat));
-            group.add(makeHoloObj(new THREE.SphereGeometry(2,32,32), 1.0, matAccent)); // 核心
-            return group;
-        }
-
-        // --- 3. DNA Helix (高密度双螺旋) ---
-        function buildHelix() {
-            const group = new THREE.Group(); animatables = [];
-            const points1=[], points2=[], linePos=[];
-            const steps = 350; // 增加步数，提高密度
-            const radius = 7; const height = 40;
-            for(let i=0; i<=steps; i++){
-                const t = i/steps; const angle = t*Math.PI*8; const y = (t-0.5)*height;
-                const x1 = Math.cos(angle)*radius; const z1 = Math.sin(angle)*radius;
-                const x2 = Math.cos(angle+Math.PI)*radius; const z2 = Math.sin(angle+Math.PI)*radius;
-                points1.push(x1,y,z1); points2.push(x2,y,z2);
-                if(i%3===0) { linePos.push(x1,y,z1, x2,y,z2); } // 碱基对连线
-            }
-            const g1=new THREE.BufferGeometry(), g2=new THREE.BufferGeometry(), gL=new THREE.BufferGeometry();
-            g1.setAttribute('position',new THREE.Float32BufferAttribute(points1,3));
-            g2.setAttribute('position',new THREE.Float32BufferAttribute(points2,3));
-            gL.setAttribute('position',new THREE.Float32BufferAttribute(linePos,3));
-            group.add(new THREE.Points(g1, matPart));
-            group.add(new THREE.Points(g2, matAccent)); // 第二条链用强调色
-            group.add(new THREE.LineSegments(gL, matLine));
-            animatables.push({mesh:group, type:'spinY', speed:0.2}); // 缓慢自转
-            return group;
-        }
-
-        // --- 4. Quantum Core (量子核心) ---
-        function buildQuantum() {
-            const group = new THREE.Group(); animatables = [];
-            const out = makeHoloObj(new THREE.IcosahedronGeometry(10,3), 0.5); // 外壳稀疏点
-            const inner = makeHoloObj(new THREE.IcosahedronGeometry(6,2), 0.95, matAccent); // 内核极密
-            animatables.push({mesh:out, type:'spinY', speed:0.1}, {mesh:inner, type:'spinY', speed:-0.3});
-            group.add(out, inner);
-            // 外部粒子云
-            const pGeo=new THREE.BufferGeometry(); const pp=[];
-            for(let i=0;i<3000;i++) {
-                const r=12+Math.random()*8, t=Math.random()*Math.PI*2, p=Math.acos(2*Math.random()-1);
-                pp.push(r*Math.sin(p)*Math.cos(t), r*Math.sin(p)*Math.sin(t), r*Math.cos(p));
-            }
-            pGeo.setAttribute('position',new THREE.Float32BufferAttribute(pp,3));
-            group.add(new THREE.Points(pGeo, matPart));
-            return group;
-        }
-
-         // --- 5. Torus Knot (极密时空结) ---
-         function buildKnot() {
-            const group = new THREE.Group(); animatables = [];
-            // pChance 设为 1.0，几乎所有顶点都生成粒子
-            const knot = makeHoloObj(new THREE.TorusKnotGeometry(8, 2.5, 200, 32, 2, 3), 1.0); 
-            animatables.push({mesh:knot, type:'spinY', speed:0.15});
-            group.add(knot);
-            return group;
-        }
-
-        // --- 6. Planetary (经典高密版) ---
-        function buildPlanetary() {
-            const group = new THREE.Group(); animatables = [];
-            group.add(makeHoloObj(new THREE.TorusGeometry(6,1.5,16,50), 0.9, matAccent)); // 太阳
-            const frame = new THREE.Group();
-            for(let i=0; i<4; i++){
-                const a=(i/4)*Math.PI*2;
-                const p = makeHoloObj(new THREE.SphereGeometry(2.5,16,16), 0.85);
-                p.position.set(Math.cos(a)*14, Math.sin(a)*14, 0);
-                animatables.push({mesh:p, type:'spinZ', speed:1.5});
-                frame.add(p);
-            }
-            animatables.push({mesh:frame, type:'spinZ', speed:0.4});
-            group.add(frame, makeHoloObj(new THREE.TorusGeometry(20,0.5,8,120), 0.4));
-            return group;
-        }
-
-        // 切换逻辑
-        const builders = { 
-            'V8 Engine': buildV8, 'Galaxy Dense': buildGalaxy, 'DNA Helix': buildHelix, 
-            'Quantum Core': buildQuantum, 'Torus Knot': buildKnot, 'Planetary': buildPlanetary 
-        };
-        function switchModel(name) {
-            scene.remove(currentGroup);
-            currentGroup = builders[name]();
-            scene.add(currentGroup);
-        }
-        switchModel(config.model);
-
-        // ========================= GUI & ANIMATION =========================
-        const gui = new GUI({ title: 'HOLO-DENSITY V5' }); gui.close();
-        gui.add(config, 'model', Object.keys(builders)).name('MODEL SELECT').onChange(switchModel);
-        const fV = gui.addFolder('COLORS & FX');
-        fV.addColor(config,'lineColor').onChange(c=>matLine.color.set(c));
-        fV.addColor(config,'particleColor').onChange(c=>{matPart.color.set(c); if(config.model.includes('Galaxy')) switchModel(config.model);});
-        fV.addColor(config,'accentColor').onChange(c=>{matAccent.color.set(c); if(config.model.includes('Galaxy')) switchModel(config.model);});
-        fV.add(config,'bloomStrength',0,2.5).onChange(v=>bloomPass.strength=v);
-        const fP = gui.addFolder('PHYSICS');
-        fP.add(config,'inertiaDamping',0.8,0.995).name('Inertia'); fP.add(config,'autoRotate');
-
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta(), time = clock.getElapsedTime();
-            
-            // 物理惯性
-            state.velocity.x *= config.inertiaDamping; state.velocity.y *= config.inertiaDamping;
-            currentGroup.rotation.y += state.velocity.x; currentGroup.rotation.x += state.velocity.y;
-            if(config.autoRotate && !state.handDetected && Math.abs(state.velocity.x)<0.001) currentGroup.rotation.y += delta*0.1;
-            state.currentZoom += (state.targetZoom - state.currentZoom)*0.08; camera.position.z = state.currentZoom;
-
-            // 模型内部动画
-            animatables.forEach(item => {
-                if(item.type==='piston') item.mesh.position.y = item.baseY + Math.sin(time*6 + item.offset)*1.8;
-                if(item.type==='spinY') item.mesh.rotation.y += delta*item.speed;
-                if(item.type==='spinZ') item.mesh.rotation.z += delta*item.speed;
+        let report = `【📅 查房日报】\n已查：${inspections.length}间\n----------------\n`;
+        const issues = inspections.filter(i => i.status === 'fail');
+        if (issues.length > 0) {
+            report += `🔴 异常房间 (${issues.length})：\n`;
+            issues.forEach(i => {
+                report += `❌ ${i.room}：${i.remarks || '未填写详情'}\n`;
             });
-            if(config.model.includes('Galaxy')) currentGroup.rotation.z += delta*0.03;
-
-            // 视觉反馈
-            matLine.opacity = 0.15 * Math.max(0, Math.min(1, (state.currentZoom-8)/40)); // 拉近时隐藏线条
-            matPart.size = config.particleSize + Math.sin(time*2)*0.03; // 粒子呼吸
-
-            composer.render();
+        } else {
+            report += `🟢 全部合格！\n`;
         }
-        animate();
-        window.onresize = () => { camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight); };
-
-        // ========================= MEDIAPIPE =========================
-        const video=document.getElementById('input-video'), dot=document.getElementById('status-dot'), txt=document.getElementById('status-text'), data=document.getElementById('gesture-data'), loader=document.getElementById('loader');
-        function onResults(results) {
-            if(loader.style.opacity!=='0') { loader.style.opacity=0; setTimeout(()=>loader.style.display='none',600); }
-            if (results.multiHandLandmarks?.length > 0) {
-                state.handDetected = true; dot.classList.add('active');
-                const hands = results.multiHandLandmarks;
-                if (hands.length === 2) {
-                    state.mode="ZOOM"; txt.innerText="ZOOM LINKED";
-                    const d=Math.sqrt(Math.pow(hands[0][8].x-hands[1][8].x,2)+Math.pow(hands[0][8].y-hands[1][8].y,2));
-                    state.targetZoom = 8 + (1-Math.min(1,Math.max(0,(d-0.05)*2.2)))*60;
-                    data.innerText=`DIST:${d.toFixed(2)}`;
-                } else {
-                    state.mode="ROTATE"; txt.innerText="ROTATE ACTIVE";
-                    const cx=hands[0][9].x, cy=hands[0][9].y;
-                    if(Math.abs(cx-state.lastHandPos.x)>0.001) state.velocity.x=(cx-state.lastHandPos.x)*config.sensitivity*10;
-                    if(Math.abs(cy-state.lastHandPos.y)>0.001) state.velocity.y=(cy-state.lastHandPos.y)*config.sensitivity*10;
-                    state.lastHandPos={x:cx,y:cy}; data.innerText=`X:${cx.toFixed(2)} Y:${cy.toFixed(2)}`;
-                }
-            } else { state.handDetected=false; dot.classList.remove('active'); txt.innerText="SCANNING..."; data.innerText="NO SIGNAL"; state.lastHandPos={x:0.5,y:0.5}; }
+        const passed = inspections.filter(i => i.status === 'pass').map(i => i.room).join(', ');
+        if (passed) {
+            report += `\n✅ 合格房间：\n${passed}`;
         }
-        const initInt=setInterval(()=>{if(window.Hands){clearInterval(initInt);const h=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7});h.onResults(onResults);const c=new window.Camera(video,{onFrame:async()=>await h.send({image:video}),width:480,height:360});c.start();}},500);
-    </script>
+        navigator.clipboard.writeText(report).then(() => {
+            alert("已复制到剪贴板！");
+        });
+    }
+
+    // 5. 导出 Excel 逻辑 (新功能)
+    function exportExcel() {
+        if (inspections.length === 0) {
+            alert("没有数据可以导出！");
+            return;
+        }
+
+        // 准备Excel数据头
+        const data = [
+            ["查房时间", "房号", "检查结果", "备注/问题描述"]
+        ];
+
+        // 填充数据
+        inspections.forEach(item => {
+            data.push([
+                item.time,
+                item.room,
+                item.status === 'pass' ? '合格' : '不合格',
+                item.remarks
+            ]);
+        });
+
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(data);
+
+        // 设置列宽 (时间, 房号, 结果, 备注)
+        ws['!cols'] = [{wch:10}, {wch:10}, {wch:10}, {wch:50}];
+
+        // 生成文件名：2025-01-11_查房日报.xlsx
+        const dateStr = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
+        const fileName = `${dateStr}_查房日报.xlsx`;
+
+        // 写入并下载
+        XLSX.utils.book_append_sheet(wb, ws, "查房记录");
+        XLSX.writeFile(wb, fileName);
+    }
+</script>
 </body>
 </html>
