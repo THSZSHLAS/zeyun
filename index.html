@@ -46,21 +46,23 @@
         }
 
         .welcome-title {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             font-weight: 800;
             color: var(--text-main);
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             text-align: center;
         }
         
+        /* 输入框卡片 */
         .big-input-group {
             width: 100%;
-            max-width: 320px;
+            max-width: 340px;
             background: white;
             padding: 30px 20px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             text-align: center;
+            margin-bottom: 20px;
         }
 
         .big-input {
@@ -68,30 +70,63 @@
             border: 2px solid var(--border);
             border-radius: 12px;
             padding: 15px;
-            font-size: 2rem;
+            font-size: 2.2rem; /* 字体加大 */
             text-align: center;
             font-weight: bold;
             color: var(--text-main);
             margin-bottom: 20px;
             outline: none;
-            /* 解决iOS输入框圆角问题 */
             -webkit-appearance: none; 
+            background: #fafafa;
         }
-        .big-input:focus { border-color: var(--primary); }
+        .big-input:focus { border-color: var(--primary); background: #fff; }
 
         .btn-large-start {
             width: 100%;
             background: var(--primary);
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
             padding: 18px;
             border: none;
             border-radius: 12px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(7, 193, 96, 0.3);
+            box-shadow: 0 6px 15px rgba(7, 193, 96, 0.3);
+            transition: transform 0.1s;
         }
         .btn-large-start:active { background: var(--primary-dark); transform: scale(0.98); }
+
+        /* 新增：主页次级大按钮 (查看记录/导出) */
+        .btn-home-secondary {
+            width: 100%;
+            max-width: 340px;
+            background: white;
+            color: #555;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 18px;
+            border: 1px solid transparent; /* 预留边框 */
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* 轻微阴影 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .btn-home-secondary:active { 
+            background: #f5f5f5; 
+            transform: scale(0.98); 
+        }
+        /* 图标颜色 */
+        .btn-home-secondary svg { width: 22px; height: 22px; color: var(--primary); }
+
+        .today-stats {
+            font-size: 0.95rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
 
         /* === 2. 检查清单页 === */
         #checklist-view {
@@ -99,10 +134,9 @@
             flex: 1;
             flex-direction: column;
             height: 100%;
-            overflow: hidden; /* 防止双重滚动 */
+            overflow: hidden;
         }
 
-        /* 顶部导航条 */
         .nav-header {
             background: white;
             padding: 15px 20px;
@@ -112,28 +146,11 @@
             box-shadow: 0 1px 0 var(--border);
             z-index: 10;
         }
-        .room-badge {
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: var(--text-main);
-        }
+        .room-badge { font-size: 1.2rem; font-weight: 800; color: var(--text-main); }
         .room-badge span { color: var(--primary); font-size: 1.4rem; margin-left: 5px; }
-        
-        .count-badge {
-            font-size: 0.9rem;
-            color: var(--text-sub);
-            background: #f5f5f5;
-            padding: 5px 12px;
-            border-radius: 15px;
-        }
+        .count-badge { font-size: 0.9rem; color: var(--text-sub); background: #f5f5f5; padding: 5px 12px; border-radius: 15px; }
 
-        /* 滚动列表区 */
-        .scroll-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            padding-bottom: 120px; /* 留出底部操作栏高度 */
-        }
+        .scroll-content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 120px; }
 
         .check-item-card {
             background: white;
@@ -145,153 +162,46 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
 
-        /* 默认合格样式 */
-        .item-header {
-            padding: 18px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
+        .item-header { padding: 18px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .item-title { font-size: 1.05rem; font-weight: 500; color: #333; }
         .item-icon { font-size: 1.2rem; opacity: 0.3; filter: grayscale(100%); transition: all 0.2s;}
         
-        /* 选中合格状态 (默认视觉) */
         .check-item-card[data-status="pass"] .item-icon { opacity: 1; filter: none; }
         .check-item-card[data-status="pass"] .item-icon::after { content: "✅"; }
 
-        /* 选中异常状态 */
-        .check-item-card[data-status="fail"] {
-            border-color: var(--danger);
-            background-color: var(--danger-bg);
-        }
+        .check-item-card[data-status="fail"] { border-color: var(--danger); background-color: var(--danger-bg); }
         .check-item-card[data-status="fail"] .item-title { color: var(--danger); font-weight: bold; }
         .check-item-card[data-status="fail"] .item-icon { opacity: 1; filter: none; }
         .check-item-card[data-status="fail"] .item-icon::after { content: "❌"; }
 
-        /* 异常详情面板 */
-        .fail-panel {
-            display: none; /* 默认隐藏 */
-            padding: 0 15px 15px 15px;
-            animation: slideDown 0.2s ease-out;
-        }
+        .fail-panel { display: none; padding: 0 15px 15px 15px; animation: slideDown 0.2s ease-out; }
         .check-item-card[data-status="fail"] .fail-panel { display: block; }
 
-        /* 标签组 */
         .tag-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-        .tag-btn {
-            background: white;
-            border: 1px solid #ddd;
-            color: #555;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
+        .tag-btn { background: white; border: 1px solid #ddd; color: #555; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; }
         .tag-btn:active { background: #eee; }
 
-        /* 备注输入 */
-        .remark-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            background: white;
-            -webkit-appearance: none;
-        }
+        .remark-input { width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 1rem; background: white; -webkit-appearance: none; }
 
         /* === 3. 底部固定操作栏 === */
         .bottom-toolbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            padding: 12px 15px;
-            padding-bottom: calc(12px + var(--safe-bottom));
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            gap: 12px;
-            z-index: 100;
+            position: fixed; bottom: 0; left: 0; right: 0; background: white;
+            padding: 12px 15px; padding-bottom: calc(12px + var(--safe-bottom));
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); display: flex; gap: 12px; z-index: 100;
         }
 
-        .btn-tool {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            color: #666;
-            background: none;
-            border: none;
-            padding: 0;
-            max-width: 60px;
-            cursor: pointer;
-        }
+        .btn-tool { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; color: #666; background: none; border: none; padding: 0; max-width: 60px; cursor: pointer; }
         .btn-tool svg { width: 24px; height: 24px; margin-bottom: 4px; color: #555; }
         
-        .btn-submit-main {
-            flex: 3;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(7, 193, 96, 0.2);
-            transition: all 0.2s;
-        }
+        .btn-submit-main { flex: 3; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(7, 193, 96, 0.2); transition: all 0.2s; }
         .btn-submit-main:active { transform: scale(0.98); }
-        .btn-submit-main:disabled { background: #ccc; box-shadow: none; }
 
-        /* 历史记录弹窗 */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 200;
-            backdrop-filter: blur(2px);
-        }
-        .modal-content {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #f9f9f9;
-            border-radius: 20px 20px 0 0;
-            max-height: 70vh;
-            display: flex;
-            flex-direction: column;
-            animation: slideUp 0.3s ease;
-        }
-        .modal-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            border-radius: 20px 20px 0 0;
-        }
-        .log-list {
-            overflow-y: auto;
-            padding: 15px;
-        }
-        .log-item {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-            border-left: 4px solid var(--primary);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
+        /* === 4. 历史记录弹窗 === */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; backdrop-filter: blur(2px); }
+        .modal-content { position: absolute; bottom: 0; left: 0; right: 0; background: #f9f9f9; border-radius: 20px 20px 0 0; max-height: 70vh; display: flex; flex-direction: column; animation: slideUp 0.3s ease; }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 20px 20px 0 0; }
+        .log-list { overflow-y: auto; padding: 15px; }
+        .log-item { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .log-item.fail { border-left-color: var(--danger); }
 
         @keyframes slideDown { from { height: 0; opacity: 0; } to { height: auto; opacity: 1; } }
@@ -303,16 +213,20 @@
 
     <div id="input-view">
         <div class="welcome-title">🧹 酒店客房查房</div>
+        
         <div class="big-input-group">
             <input type="number" id="roomNo" class="big-input" placeholder="输入房号" inputmode="numeric" autocomplete="off">
             <button class="btn-large-start" onclick="startCheck()">开始查房</button>
         </div>
-        <div style="margin-top:20px; color:#999; font-size:0.9rem;">
-            今日已查：<span id="homeCount" style="color:#333; font-weight:bold;">0</span> 间
+
+        <div class="today-stats">
+            今日已查：<span id="homeCount" style="color:#333; font-weight:bold; font-size:1.1rem;">0</span> 间
         </div>
-        <div style="margin-top:30px; text-align:center;">
-             <button onclick="showHistory()" style="background:none; border:none; color:var(--primary); font-weight:bold; padding:10px;">📊 查看记录 / 导出日报</button>
-        </div>
+
+        <button onclick="showHistory()" class="btn-home-secondary">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            查看记录 / 导出日报
+        </button>
     </div>
 
     <div id="checklist-view">
@@ -329,7 +243,6 @@
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 记录
             </button>
-            
             <button class="btn-submit-main" onclick="submitResult()">
                 ✅ 合格 / 下一间
             </button>
@@ -367,7 +280,6 @@
             "卫浴布草(毛浴巾/地巾)",
             "无垃圾/无遗留物/无异味"
         ];
-        
         const TAGS = ["污渍", "破损", "缺失", "故障", "异味", "不洁", "堵塞", "数量不足", "水渍"];
 
         // === 状态管理 ===
@@ -375,7 +287,7 @@
         let currentRoomItems = [];
         let currentRoomNo = "";
 
-        // === 1. 核心流程 ===
+        // === 逻辑函数 ===
         
         function startCheck() {
             const input = document.getElementById('roomNo');
@@ -385,15 +297,10 @@
                 input.focus();
                 return;
             }
-
             currentRoomNo = val;
             document.getElementById('currentRoomDisplay').innerText = val;
-            
-            // 切换页面
             document.getElementById('input-view').style.display = 'none';
             document.getElementById('checklist-view').style.display = 'flex';
-            
-            // 渲染列表
             renderChecklist();
         }
 
@@ -416,10 +323,7 @@
             currentRoomItems = [];
 
             CHECK_ITEMS.forEach((name, index) => {
-                // 数据初始化
                 currentRoomItems.push({ name: name, status: 'pass', remark: '' });
-
-                // DOM生成
                 const card = document.createElement('div');
                 card.className = 'check-item-card';
                 card.dataset.idx = index;
@@ -442,20 +346,15 @@
             });
         }
 
-        // === 2. 交互逻辑 ===
-
         function toggleStatus(idx) {
             const card = document.getElementById(`card-${idx}`);
             const item = currentRoomItems[idx];
             const input = document.getElementById(`remark-${idx}`);
 
             if(item.status === 'pass') {
-                // 变异常
                 item.status = 'fail';
                 card.dataset.status = 'fail';
-                // 移动端尽量不要自动 focus，键盘弹出会遮挡
             } else {
-                // 变合格
                 item.status = 'pass';
                 item.remark = '';
                 card.dataset.status = 'pass';
@@ -490,8 +389,6 @@
             }
         }
 
-        // === 3. 提交与数据 ===
-
         function submitResult() {
             const failList = currentRoomItems.filter(i => i.status === 'fail');
             const isPass = failList.length === 0;
@@ -503,22 +400,16 @@
                 desc: isPass ? '' : failList.map(i => `[${i.name.split('/')[0]}] ${i.remark||'未填'}`).join('; ')
             };
 
-            allRecords.unshift(record); // 加到前面
+            allRecords.unshift(record);
             document.getElementById('homeCount').innerText = allRecords.length;
-
-            // 提交成功反馈
-            // 简单震动反馈(安卓)
             if(navigator.vibrate) navigator.vibrate(50);
-            
             resetToHome();
         }
 
-        // === 4. 历史记录与导出 ===
-
+        // === 历史记录逻辑 ===
         function showHistory() {
             const list = document.getElementById('logListArea');
             list.innerHTML = '';
-            
             if(allRecords.length === 0) {
                 list.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">暂无记录</div>';
             } else {
@@ -543,41 +434,23 @@
             document.getElementById('historyModal').style.display = 'none';
         }
 
-        // 复制日报文本
         function copyReport() {
             if(allRecords.length === 0) return alert('没数据怎么复制？');
-
             const dateStr = new Date().toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'});
             let text = `【📅 ${dateStr} 查房日报】\n已查：${allRecords.length}间\n----------------\n`;
-            
             const fails = allRecords.filter(r => r.status === '异常');
             if(fails.length > 0) {
                 text += `🔴 异常 (${fails.length})：\n`;
-                fails.forEach(r => {
-                    text += `❌ ${r.room}：${r.desc}\n`;
-                });
-            } else {
-                text += `🟢 全部合格！\n`;
-            }
-
+                fails.forEach(r => { text += `❌ ${r.room}：${r.desc}\n`; });
+            } else { text += `🟢 全部合格！\n`; }
             const passes = allRecords.filter(r => r.status === '合格').map(r => r.room).join(', ');
-            if(passes) {
-                text += `\n✅ 合格：\n${passes}`;
-            }
+            if(passes) { text += `\n✅ 合格：\n${passes}`; }
 
-            // 执行复制
             if(navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('已复制！去微信粘贴吧');
-                }).catch(() => {
-                    manualCopy(text);
-                });
-            } else {
-                manualCopy(text);
-            }
+                navigator.clipboard.writeText(text).then(() => alert('已复制！去微信粘贴吧')).catch(() => manualCopy(text));
+            } else { manualCopy(text); }
         }
 
-        // 兼容旧浏览器的复制
         function manualCopy(text) {
             const ta = document.createElement('textarea');
             ta.value = text;
@@ -588,24 +461,17 @@
             alert('已复制！去微信粘贴吧');
         }
 
-        // 导出 Excel
         function exportExcel() {
             if(allRecords.length === 0) return alert('没数据');
-            
             const data = [["时间", "房号", "状态", "异常详情"]];
-            allRecords.forEach(r => {
-                data.push([r.time, r.room, r.status, r.desc]);
-            });
-
+            allRecords.forEach(r => { data.push([r.time, r.room, r.status, r.desc]); });
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(data);
             ws['!cols'] = [{wch:10}, {wch:10}, {wch:10}, {wch:50}];
-            
             const fileName = `查房日报_${new Date().toLocaleDateString().replace(/\//g,'-')}.xlsx`;
             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
             XLSX.writeFile(wb, fileName);
         }
-
     </script>
 </body>
 </html>
