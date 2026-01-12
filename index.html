@@ -64,10 +64,9 @@
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px; /* 增加间距 */
+            gap: 15px;
         }
 
-        /* 通用输入框样式 */
         .common-input {
             width: 100%;
             border: 2px solid var(--border);
@@ -83,9 +82,7 @@
         }
         .common-input:focus { border-color: var(--primary); background: #fff; }
 
-        /* 姓名框稍微小一点 */
         .name-input { font-size: 1.2rem; }
-        /* 房号框大一点 */
         .room-input { font-size: 2.2rem; }
 
         .btn-large-start {
@@ -164,11 +161,14 @@
         .item-title { font-size: 1.1rem; font-weight: 700; color: #333; margin-bottom: 4px; }
         .item-subtitle { font-size: 0.85rem; color: #888; font-weight: normal; line-height: 1.4; width: 90%; }
         
+        /* 状态图标 */
         .status-mark { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; opacity: 0.3; filter: grayscale(100%); }
         
+        /* 默认合格状态 */
         .check-item-card[data-status="pass"] .status-mark { opacity: 1; filter: none; }
         .check-item-card[data-status="pass"] .status-mark::after { content: "✅"; }
 
+        /* 异常状态 */
         .check-item-card[data-status="fail"] { border-color: var(--danger); background-color: var(--danger-bg); }
         .check-item-card[data-status="fail"] .item-title { color: var(--danger); }
         .check-item-card[data-status="fail"] .status-mark { opacity: 1; filter: none; }
@@ -193,7 +193,20 @@
         .btn-tool { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; color: #666; background: none; border: none; padding: 0; max-width: 60px; cursor: pointer; }
         .btn-tool svg { width: 24px; height: 24px; margin-bottom: 4px; color: #555; }
         
-        .btn-submit-main { flex: 3; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(7, 193, 96, 0.2); transition: all 0.2s; }
+        .btn-submit-main { 
+            flex: 3; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 4px 10px rgba(7, 193, 96, 0.2); 
+            transition: all 0.2s; 
+        }
         .btn-submit-main:active { transform: scale(0.98); }
 
         /* === 4. 历史记录弹窗 === */
@@ -216,9 +229,7 @@
         
         <div class="big-input-group">
             <input type="text" id="inspectorName" class="common-input name-input" placeholder="您的姓名" onchange="saveName()">
-            
             <input type="number" id="roomNo" class="common-input room-input" placeholder="输入房号" inputmode="numeric" autocomplete="off">
-            
             <button class="btn-large-start" onclick="startCheck()">开始查房</button>
         </div>
 
@@ -247,7 +258,7 @@
                 记录
             </button>
             <button class="btn-submit-main" onclick="submitResult()">
-                ✅ 合格 / 下一间
+                🟢 此房合格 / 下一间
             </button>
         </div>
     </div>
@@ -298,7 +309,6 @@
             }
         }
 
-        // 自动保存姓名
         function saveName() {
             const name = document.getElementById('inspectorName').value.trim();
             localStorage.setItem('inspectorName', name);
@@ -315,7 +325,7 @@
                 nameInput.focus();
                 return;
             }
-            saveName(); // 确保保存
+            saveName();
 
             if(!roomInput.value.trim()) {
                 alert("请输入房号");
@@ -330,6 +340,8 @@
             document.getElementById('checklist-view').style.display = 'flex';
             
             renderChecklist();
+            // 关键：开始时强制刷新按钮状态，确保默认是“合格”
+            updateSubmitBtnText();
         }
 
         function exitCheck() {
@@ -408,15 +420,19 @@
             currentRoomItems[idx].remark = val;
         }
 
+        // === 关键逻辑：更新按钮文字 ===
         function updateSubmitBtnText() {
-            const hasFail = currentRoomItems.some(i => i.status === 'fail');
+            const failItems = currentRoomItems.filter(i => i.status === 'fail');
             const btn = document.querySelector('.btn-submit-main');
-            if(hasFail) {
+            
+            if(failItems.length > 0) {
+                // 有异常：变红
                 btn.style.background = 'var(--danger)';
-                btn.innerHTML = '⚠️ 提交异常';
+                btn.innerHTML = `⚠️ 提交异常 (${failItems.length}项)`;
             } else {
+                // 无异常：变绿
                 btn.style.background = 'var(--primary)';
-                btn.innerHTML = '✅ 合格 / 下一间';
+                btn.innerHTML = '🟢 此房合格 / 下一间';
             }
         }
 
@@ -472,9 +488,9 @@
             const dateStr = new Date().toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'});
             const total = allRecords.length;
             const fails = allRecords.filter(r => r.status === '异常');
-            const passRate = Math.round(((total - fails.length) / total) * 100);
+            // 计算合格率：(总数-异常数) / 总数
+            const passRate = total === 0 ? 0 : Math.round(((total - fails.length) / total) * 100);
 
-            // 构造文案
             let text = `【📅 ${dateStr} 查房日报】\n`;
             text += `姓名：${name}\n`;
             text += `共查：${total}间\n`;
@@ -520,10 +536,13 @@
             if(allRecords.length === 0) return alert('没数据');
             
             const name = document.getElementById('inspectorName').value || "未填写";
-            
-            // Excel表头
+            const total = allRecords.length;
+            const fails = allRecords.filter(r => r.status === '异常');
+            const passRate = total === 0 ? 0 : Math.round(((total - fails.length) / total) * 100);
+
+            // Excel表头增加合格率统计
             const data = [
-                ["查房人", name, "", ""],
+                ["查房人", name, "合格率", `${passRate}%`],
                 ["时间", "房号", "状态", "异常详情"]
             ];
             allRecords.forEach(r => {
