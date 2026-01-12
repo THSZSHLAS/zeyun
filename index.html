@@ -3,374 +3,411 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>客房查房终端</title>
+    <title>查房系统</title>
     <script src="https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    
     <style>
         :root {
             --primary: #07C160; /* 微信绿 */
-            --danger: #FA5151;
-            --excel: #217346;   /* Excel绿 */
-            --bg: #f7f7f7;
+            --danger: #FA5151;  /* 警告红 */
+            --bg: #F0F2F5;
             --card: #ffffff;
-            --text: #333333;
+            --text-main: #2c3e50;
+            --text-sub: #8c939d;
+            --border: #ebedf0;
         }
 
         body {
-            font-family: -apple-system, "Helvetica Neue", Helvetica, "Segoe UI", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             background-color: var(--bg);
-            color: var(--text);
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            padding: 16px;
+            color: var(--text-main);
+            padding-bottom: 100px; /* 为底部按钮留空 */
         }
 
-        /* 标题区 */
-        .header {
-            text-align: center;
+        /* 顶部导航 */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
         }
-        .header h2 { margin: 0; font-size: 1.2rem; }
-        .header p { margin: 5px 0 0; color: #666; font-size: 0.9rem; }
+        .navbar h2 { margin: 0; font-size: 1.25rem; }
+        .stats-badge {
+            background: #E8F5E9;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
 
-        /* 卡片通用样式 */
+        /* 卡片容器 */
         .card {
             background: var(--card);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s ease;
         }
 
-        /* 第一步：输入房号 */
-        .input-group {
+        /* 1. 房号输入区 */
+        .input-area {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
-        input[type="number"] {
+        .room-input {
             flex: 1;
-            padding: 15px;
+            padding: 14px;
             font-size: 1.2rem;
-            border: 1px solid #ddd;
+            border: 2px solid var(--border);
             border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
             outline: none;
-            text-align: center;
+            transition: border-color 0.2s;
         }
+        .room-input:focus { border-color: var(--primary); }
         .btn-start {
-            background-color: var(--primary);
+            background: var(--primary);
             color: white;
             border: none;
-            padding: 0 25px;
+            padding: 0 24px;
             border-radius: 8px;
+            font-weight: bold;
             font-size: 1rem;
-            font-weight: bold;
         }
 
-        /* 第二步：检查清单 (默认隐藏) */
-        #checklist-section {
-            display: none; /* 初始隐藏 */
-        }
-
-        .current-room-display {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary);
+        /* 2. 检查项列表 */
+        #checklist-container { display: none; }
+        
+        .room-title {
             text-align: center;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        /* 检查细则列表 */
-        .checklist-items {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 20px 0;
-            max-height: 200px;
-            overflow-y: auto;
-            background: #fafafa;
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px dashed #ccc;
-        }
-        .checklist-items li {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 0.95rem;
-            color: #555;
-            display: flex;
-            align-items: center;
-        }
-        .checklist-items li::before {
-            content: "👁️";
-            margin-right: 8px;
-        }
-
-        /* 备注栏 */
-        textarea {
-            width: 100%;
-            height: 120px; /* 大一点 */
-            padding: 15px;
-            box-sizing: border-box;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            resize: none;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--primary);
             margin-bottom: 20px;
-            font-family: inherit;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
         }
 
-        /* 底部操作按钮 */
-        .action-buttons {
+        /* 单个检查项样式 */
+        .check-item {
             display: flex;
-            gap: 15px;
-        }
-        .btn {
-            flex: 1;
-            padding: 18px;
-            border: none;
+            flex-direction: column;
+            margin-bottom: 12px;
+            background: #fff;
+            border: 1px solid var(--border);
             border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            transition: opacity 0.2s;
+            overflow: hidden;
+            transition: all 0.2s;
         }
-        .btn:active { opacity: 0.8; }
-        .btn-pass { background-color: var(--primary); }
-        .btn-fail { background-color: var(--danger); }
 
-        /* 历史记录与导出区 */
-        .history-section {
-            margin-top: auto;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-        .log-item {
-            font-size: 0.85rem;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
+        /* 正常状态（合格） */
+        .check-item-header {
+            padding: 16px;
             display: flex;
             justify-content: space-between;
-        }
-        .log-pass { color: var(--primary); }
-        .log-fail { color: var(--danger); font-weight: bold; }
-
-        /* 导出按钮组 */
-        .export-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .btn-tool {
-            flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            color: white;
-            font-size: 0.9rem;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 5px;
+            cursor: pointer;
+            background: #fff;
+        }
+        .check-text { font-size: 1rem; font-weight: 500; }
+        .status-icon { font-size: 1.2rem; color: var(--border); }
+        
+        /* 选中状态（合格） */
+        .check-item.pass { border-left: 5px solid var(--primary); }
+        .check-item.pass .status-icon::after { content: "✅"; }
+        
+        /* 选中状态（不合格） */
+        .check-item.fail { 
+            border: 1px solid var(--danger); 
+            border-left: 5px solid var(--danger);
+            background: #FFF5F5;
+        }
+        .check-item.fail .check-text { color: var(--danger); }
+        .check-item.fail .status-icon::after { content: "❌"; }
+
+        /* 异常详情区域（默认隐藏） */
+        .fail-detail {
+            display: none;
+            padding: 0 16px 16px 16px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .check-item.fail .fail-detail { display: block; }
+
+        /* 快捷标签 */
+        .tags-row {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .tag {
+            padding: 6px 12px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #666;
             cursor: pointer;
         }
-        .btn-copy { background: #333; }
-        .btn-excel { background: var(--excel); }
+        .tag:active { background: #eee; }
 
+        /* 备注输入框 */
+        .remark-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ffcccc;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        /* 底部固定操作栏 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            padding: 15px 20px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+        .btn-submit {
+            flex: 1;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        .btn-export {
+            flex: 0 0 100px;
+            background: #217346;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        /* 历史记录 */
+        .history-card { margin-top: 30px; opacity: 0.8; }
+        .log-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        .log-fail-text { color: var(--danger); font-size: 0.85rem; margin-top: 4px; display: block;}
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h2>🧹 客房快速查房</h2>
-    <p>今日已查: <span id="count">0</span> 间</p>
-</div>
-
-<div class="card" id="input-section">
-    <label style="display:block; margin-bottom:10px; font-weight:bold;">请输入房号：</label>
-    <div class="input-group">
-        <input type="number" id="roomInput" placeholder="例如: 805">
-        <button class="btn-start" onclick="startCheck()">开始检查</button>
-    </div>
-</div>
-
-<div class="card" id="checklist-section">
-    <div class="current-room-display">
-        正在检查: <span id="displayRoomNumber">--</span>
+    <div class="navbar">
+        <h2>🚀 极速查房</h2>
+        <div class="stats-badge">今日已查: <span id="roomCount">0</span></div>
     </div>
 
-    <div style="font-weight:bold; margin-bottom:10px; color:#666;">📝 核心检查项：</div>
-    <ul class="checklist-items">
-        <li>门窗锁闭是否正常，无异响</li>
-        <li>床铺平整，无毛发，床单无污渍</li>
-        <li>卫生间台面干燥，镜面无水渍</li>
-        <li>毛巾、浴巾、地巾配备齐全</li>
-        <li>马桶冲水正常，无异味，纸品已补</li>
-        <li>电器（电视/灯光/空调/吹风机）可运行</li>
-        <li>迷你吧酒水单与实物一致</li>
-        <li>地面地毯洁净，无明显碎屑</li>
-    </ul>
-
-    <label style="font-weight:bold; display:block; margin-bottom:8px;">备注/问题描述 (选填)：</label>
-    <textarea id="remarks" placeholder="在这里输入问题详情，支持手机语音输入..."></textarea>
-
-    <div class="action-buttons">
-        <button class="btn btn-fail" onclick="submitResult('fail')">❌ 不合格</button>
-        <button class="btn btn-pass" onclick="submitResult('pass')">✅ 合格 (下一间)</button>
-    </div>
-</div>
-
-<div class="history-section">
-    <div style="font-weight:bold; margin-bottom:10px;">最近记录：</div>
-    <div id="log-list">
+    <div id="input-view" class="card">
+        <h3 style="margin-top:0; color:#666;">开始新房间</h3>
+        <div class="input-area">
+            <input type="number" id="roomNo" class="room-input" placeholder="输入房号" inputmode="numeric">
+            <button class="btn-start" onclick="startInspection()">开始</button>
+        </div>
     </div>
 
-    <div class="export-group">
-        <button class="btn-tool btn-copy" onclick="copyReport()">📋 复制微信文本</button>
-        <button class="btn-tool btn-excel" onclick="exportExcel()">📥 导出 Excel</button>
+    <div id="checklist-container">
+        <div class="card">
+            <div class="room-title">房号：<span id="currRoomNo">--</span></div>
+            <div id="checklist-items-area">
+                </div>
+            <div style="text-align:center; color:#999; font-size:0.8rem; margin-top:20px;">
+                💡 提示：点击文字标记异常，默认均为合格
+            </div>
+        </div>
+        <div style="height: 60px;"></div> </div>
+
+    <div class="bottom-bar">
+        <button class="btn-export" onclick="exportExcel()">📥 导出</button>
+        <button id="submitBtn" class="btn-submit" onclick="submitResult()" style="display:none; background:#333; cursor:not-allowed;">请先开始</button>
     </div>
-</div>
 
-<script>
-    // 全局变量存储今日数据
-    let inspections = [];
-    let currentRoom = "";
+    <div class="card history-card">
+        <h4 style="margin:0 0 10px 0;">最近记录</h4>
+        <div id="history-list"></div>
+    </div>
 
-    // 1. 开始检查逻辑
-    function startCheck() {
-        const input = document.getElementById('roomInput');
-        const roomVal = input.value.trim();
-
-        if (!roomVal) {
-            alert("请输入房号！");
-            return;
-        }
-
-        currentRoom = roomVal;
-
-        // 切换界面
-        document.getElementById('displayRoomNumber').innerText = currentRoom;
-        document.getElementById('input-section').style.display = 'none';
-        document.getElementById('checklist-section').style.display = 'block';
-    }
-
-    // 2. 提交结果逻辑
-    function submitResult(status) {
-        const remarks = document.getElementById('remarks').value;
-
-        // 保存数据
-        const record = {
-            room: currentRoom,
-            status: status, // 'pass' or 'fail'
-            remarks: remarks,
-            time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})
-        };
-
-        inspections.push(record);
-
-        // 更新界面UI
-        addLogToDisplay(record);
-        document.getElementById('count').innerText = inspections.length;
-
-        // 重置表单，准备下一间
-        resetForm();
-    }
-
-    // 3. 重置表单逻辑
-    function resetForm() {
-        document.getElementById('roomInput').value = '';
-        document.getElementById('remarks').value = '';
-        currentRoom = "";
-        document.getElementById('checklist-section').style.display = 'none';
-        document.getElementById('input-section').style.display = 'block';
-        document.getElementById('roomInput').focus();
-    }
-
-    // 辅助：显示日志
-    function addLogToDisplay(record) {
-        const list = document.getElementById('log-list');
-        const div = document.createElement('div');
-        div.className = 'log-item';
-
-        const statusText = record.status === 'pass'
-            ? '<span class="log-pass">合格</span>'
-            : '<span class="log-fail">不合格</span>';
-
-        let remarkText = record.remarks ? ` - ${record.remarks}` : "";
-
-        div.innerHTML = `
-                <span>${record.time} 房号 <b>${record.room}</b></span>
-                <span>${statusText}${remarkText}</span>
-            `;
-
-        list.insertBefore(div, list.firstChild);
-    }
-
-    // 4. 复制日报逻辑 (纯文本)
-    function copyReport() {
-        if (inspections.length === 0) {
-            alert("无数据！");
-            return;
-        }
-        let report = `【📅 查房日报】\n已查：${inspections.length}间\n----------------\n`;
-        const issues = inspections.filter(i => i.status === 'fail');
-        if (issues.length > 0) {
-            report += `🔴 异常房间 (${issues.length})：\n`;
-            issues.forEach(i => {
-                report += `❌ ${i.room}：${i.remarks || '未填写详情'}\n`;
-            });
-        } else {
-            report += `🟢 全部合格！\n`;
-        }
-        const passed = inspections.filter(i => i.status === 'pass').map(i => i.room).join(', ');
-        if (passed) {
-            report += `\n✅ 合格房间：\n${passed}`;
-        }
-        navigator.clipboard.writeText(report).then(() => {
-            alert("已复制到剪贴板！");
-        });
-    }
-
-    // 5. 导出 Excel 逻辑 (新功能)
-    function exportExcel() {
-        if (inspections.length === 0) {
-            alert("没有数据可以导出！");
-            return;
-        }
-
-        // 准备Excel数据头
-        const data = [
-            ["查房时间", "房号", "检查结果", "备注/问题描述"]
+    <script>
+        // === 1. 定义检查标准 (SOP) ===
+        // 这里的每一项都会生成一个独立的检查条目
+        const CHECK_ITEMS = [
+            "门窗/锁闭/电动窗帘",
+            "灯光/空调/电视/电话",
+            "墙面/地面/地毯/天花",
+            "家具/衣柜/拖鞋/浴衣",
+            "床品(平整/无污渍/无毛发)",
+            "烧水壶/杯具(无异味破损)",
+            "卫浴台面/镜面/易耗品齐全",
+            "马桶(冲水/洁净/纸品)",
+            "淋浴(花洒/地漏/水温)",
+            "卫浴布草(毛浴巾/地巾)",
+            "无垃圾/无遗留物/无异味"
         ];
 
-        // 填充数据
-        inspections.forEach(item => {
-            data.push([
-                item.time,
-                item.room,
-                item.status === 'pass' ? '合格' : '不合格',
-                item.remarks
-            ]);
-        });
+        // 快捷标签 (减少打字)
+        const QUICK_TAGS = ["污渍", "破损", "缺失", "故障", "异味", "不洁", "堵塞", "数量不足"];
 
-        // 创建工作簿
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(data);
+        let allRecords = []; // 存储所有房间记录
+        let currentRoomData = {}; // 当前房间状态
 
-        // 设置列宽 (时间, 房号, 结果, 备注)
-        ws['!cols'] = [{wch:10}, {wch:10}, {wch:10}, {wch:50}];
+        // === 2. 核心逻辑 ===
 
-        // 生成文件名：2025-01-11_查房日报.xlsx
-        const dateStr = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
-        const fileName = `${dateStr}_查房日报.xlsx`;
+        function startInspection() {
+            const roomNo = document.getElementById('roomNo').value.trim();
+            if (!roomNo) return alert('请输入房号');
 
-        // 写入并下载
-        XLSX.utils.book_append_sheet(wb, ws, "查房记录");
-        XLSX.writeFile(wb, fileName);
-    }
-</script>
-</body>
-</html>
+            // 初始化界面
+            document.getElementById('input-view').style.display = 'none';
+            document.getElementById('checklist-container').style.display = 'block';
+            document.getElementById('currRoomNo').innerText = roomNo;
+            
+            // 激活提交按钮
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.style.display = 'block';
+            submitBtn.style.background = 'var(--primary)';
+            submitBtn.innerText = '✅ 确认提交 (此房)';
+            submitBtn.disabled = false;
+
+            // 生成检查列表
+            renderChecklist(roomNo);
+        }
+
+        function renderChecklist(roomNo) {
+            const container = document.getElementById('checklist-items-area');
+            container.innerHTML = '';
+            
+            // 初始化数据结构：默认全部合格 (pass)
+            currentRoomData = {
+                room: roomNo,
+                timestamp: new Date(),
+                items: CHECK_ITEMS.map(name => ({ name: name, status: 'pass', remark: '' }))
+            };
+
+            // 渲染每一个检查项
+            currentRoomData.items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'check-item pass'; // 默认合格样式
+                div.id = `item-${index}`;
+                div.innerHTML = `
+                    <div class="check-item-header" onclick="toggleItem(${index})">
+                        <span class="check-text">${item.name}</span>
+                        <span class="status-icon"></span>
+                    </div>
+                    <div class="fail-detail">
+                        <div class="tags-row">
+                            ${QUICK_TAGS.map(tag => `<span class="tag" onclick="addTag(${index}, '${tag}')">${tag}</span>`).join('')}
+                        </div>
+                        <input type="text" class="remark-input" id="input-${index}" 
+                               placeholder="备注详情..." oninput="updateRemark(${index}, this.value)">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 切换状态：合格 <-> 不合格
+        function toggleItem(index) {
+            const itemData = currentRoomData.items[index];
+            const el = document.getElementById(`item-${index}`);
+            const input = document.getElementById(`input-${index}`);
+
+            if (itemData.status === 'pass') {
+                // 变不合格
+                itemData.status = 'fail';
+                el.className = 'check-item fail';
+                // 自动聚焦输入框，但因为有快捷标签，不强制聚焦以免键盘遮挡
+                // input.focus(); 
+            } else {
+                // 变回合格
+                itemData.status = 'pass';
+                itemData.remark = ''; // 清空备注
+                el.className = 'check-item pass';
+                input.value = '';
+            }
+        }
+
+        // 点击快捷标签
+        function addTag(index, tagText) {
+            const input = document.getElementById(`input-${index}`);
+            const currentVal = input.value;
+            // 避免重复添加
+            if (!currentVal.includes(tagText)) {
+                const newVal = currentVal ? currentVal + " " + tagText : tagText;
+                input.value = newVal;
+                updateRemark(index, newVal);
+            }
+        }
+
+        // 更新备注数据
+        function updateRemark(index, val) {
+            currentRoomData.items[index].remark = val;
+        }
+
+        // 提交本房结果
+        function submitResult() {
+            // 计算是否有不合格项
+            const failItems = currentRoomData.items.filter(i => i.status === 'fail');
+            const isAllPass = failItems.length === 0;
+
+            // 构造保存记录
+            const record = {
+                time: currentRoomData.timestamp.toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}),
+                room: currentRoomData.room,
+                status: isAllPass ? '合格' : '异常',
+                // 核心：只生成不合格项的描述文本
+                details: isAllPass ? '' : failItems.map(i => `[${i.name}] ${i.remark || '未填原因'}`).join('; ')
+            };
+
+            allRecords.unshift(record); // 加到最前
+            document.getElementById('roomCount').innerText = allRecords.length;
+
+            // 更新历史UI
+            const logDiv = document.createElement('div');
+            logDiv.style.borderBottom = '1px solid #eee';
+            logDiv.style.padding = '8px 0';
+            logDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>${record.room}</strong>
+                    <span style="color:${isAllPass ? 'var(--primary)' : 'var(--danger)'}">${record.status}</span>
+                </div>
+                ${record.details ? `<div style="color:#666; font-size:0.85rem; margin-top:4px;">${record.details}</div>` : ''}
+            `;
+            const list = document.getElementById('history-list');
+            list.insertBefore(logDiv, list.firstChild);
+
+            // 重置界面，准备下一间
+            document.getElementById('checklist-container').style.display = 'none';
+            document.getElementById('input-view').style.display = 'block';
+            document.getElementById('roomNo').value = '';
+            document.getElementById('roomNo').focus();
+            
+            // 恢复按钮状态
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerText = '请先开始';
+            submitBtn.style.background = '#333';
+            submitBtn.disabled = true;
+        }
+
+ d
