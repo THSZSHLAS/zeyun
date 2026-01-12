@@ -33,7 +33,7 @@
             flex-direction: column;
         }
 
-        /* === 1. 首页：房号输入 (垂直居中布局) === */
+        /* === 1. 首页 === */
         #input-view {
             flex: 1;
             display: flex;
@@ -53,7 +53,6 @@
             text-align: center;
         }
         
-        /* 输入框卡片 */
         .big-input-group {
             width: 100%;
             max-width: 340px;
@@ -63,23 +62,31 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             text-align: center;
             margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* 增加间距 */
         }
 
-        .big-input {
+        /* 通用输入框样式 */
+        .common-input {
             width: 100%;
             border: 2px solid var(--border);
             border-radius: 12px;
             padding: 15px;
-            font-size: 2.2rem; /* 字体加大 */
             text-align: center;
             font-weight: bold;
             color: var(--text-main);
-            margin-bottom: 20px;
             outline: none;
             -webkit-appearance: none; 
             background: #fafafa;
+            transition: all 0.2s;
         }
-        .big-input:focus { border-color: var(--primary); background: #fff; }
+        .common-input:focus { border-color: var(--primary); background: #fff; }
+
+        /* 姓名框稍微小一点 */
+        .name-input { font-size: 1.2rem; }
+        /* 房号框大一点 */
+        .room-input { font-size: 2.2rem; }
 
         .btn-large-start {
             width: 100%;
@@ -96,7 +103,6 @@
         }
         .btn-large-start:active { background: var(--primary-dark); transform: scale(0.98); }
 
-        /* 新增：主页次级大按钮 (查看记录/导出) */
         .btn-home-secondary {
             width: 100%;
             max-width: 340px;
@@ -105,28 +111,20 @@
             font-size: 1.1rem;
             font-weight: 600;
             padding: 18px;
-            border: 1px solid transparent; /* 预留边框 */
+            border: 1px solid transparent;
             border-radius: 16px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* 轻微阴影 */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
             transition: all 0.2s;
         }
-        .btn-home-secondary:active { 
-            background: #f5f5f5; 
-            transform: scale(0.98); 
-        }
-        /* 图标颜色 */
+        .btn-home-secondary:active { background: #f5f5f5; transform: scale(0.98); }
         .btn-home-secondary svg { width: 22px; height: 22px; color: var(--primary); }
 
-        .today-stats {
-            font-size: 0.95rem;
-            color: #888;
-            margin-bottom: 15px;
-        }
+        .today-stats { font-size: 0.95rem; color: #888; margin-bottom: 15px; }
 
         /* === 2. 检查清单页 === */
         #checklist-view {
@@ -162,17 +160,19 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
 
-        .item-header { padding: 18px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .item-title { font-size: 1.05rem; font-weight: 500; color: #333; }
-        .item-icon { font-size: 1.2rem; opacity: 0.3; filter: grayscale(100%); transition: all 0.2s;}
+        .item-header { padding: 18px 15px; display: flex; flex-direction: column; align-items: flex-start; cursor: pointer; position: relative; }
+        .item-title { font-size: 1.1rem; font-weight: 700; color: #333; margin-bottom: 4px; }
+        .item-subtitle { font-size: 0.85rem; color: #888; font-weight: normal; line-height: 1.4; width: 90%; }
         
-        .check-item-card[data-status="pass"] .item-icon { opacity: 1; filter: none; }
-        .check-item-card[data-status="pass"] .item-icon::after { content: "✅"; }
+        .status-mark { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; opacity: 0.3; filter: grayscale(100%); }
+        
+        .check-item-card[data-status="pass"] .status-mark { opacity: 1; filter: none; }
+        .check-item-card[data-status="pass"] .status-mark::after { content: "✅"; }
 
         .check-item-card[data-status="fail"] { border-color: var(--danger); background-color: var(--danger-bg); }
-        .check-item-card[data-status="fail"] .item-title { color: var(--danger); font-weight: bold; }
-        .check-item-card[data-status="fail"] .item-icon { opacity: 1; filter: none; }
-        .check-item-card[data-status="fail"] .item-icon::after { content: "❌"; }
+        .check-item-card[data-status="fail"] .item-title { color: var(--danger); }
+        .check-item-card[data-status="fail"] .status-mark { opacity: 1; filter: none; }
+        .check-item-card[data-status="fail"] .status-mark::after { content: "❌"; }
 
         .fail-panel { display: none; padding: 0 15px 15px 15px; animation: slideDown 0.2s ease-out; }
         .check-item-card[data-status="fail"] .fail-panel { display: block; }
@@ -212,10 +212,13 @@
 <body>
 
     <div id="input-view">
-        <div class="welcome-title">🧹 酒店客房查房</div>
+        <div class="welcome-title">🧹 极速查房系统</div>
         
         <div class="big-input-group">
-            <input type="number" id="roomNo" class="big-input" placeholder="输入房号" inputmode="numeric" autocomplete="off">
+            <input type="text" id="inspectorName" class="common-input name-input" placeholder="您的姓名" onchange="saveName()">
+            
+            <input type="number" id="roomNo" class="common-input room-input" placeholder="输入房号" inputmode="numeric" autocomplete="off">
+            
             <button class="btn-large-start" onclick="startCheck()">开始查房</button>
         </div>
 
@@ -266,41 +269,66 @@
     </div>
 
     <script>
-        // === 配置数据 ===
+        // === SOP 配置 ===
         const CHECK_ITEMS = [
-            "门窗/锁闭/电动窗帘",
-            "灯光/空调/电视/烧水壶",
-            "墙面/地面/地毯/天花",
-            "家具/衣柜/拖鞋/浴衣",
-            "床品(平整/无污渍/无毛发)",
-            "杯具/玻璃器皿(洁净无损)",
-            "卫浴台面/镜面/易耗品齐全",
-            "马桶(冲水/洁净/无异味)",
-            "淋浴(花洒/地漏/水温)",
-            "卫浴布草(毛浴巾/地巾)",
-            "无垃圾/无遗留物/无异味"
+            { title: "进门与玄关", subtitle: "门锁灵敏/安全扣/廊灯正常/墙顶地无痕" },
+            { title: "衣帽与备品", subtitle: "拖鞋/浴衣/衣柜开合/保险箱/洗衣袋" },
+            { title: "床品与床头", subtitle: "平整无污发/床头无灰/电话/总控灵敏" },
+            { title: "起居与吧台", subtitle: "家具无污/烧水壶洁净/空冰箱清洁/地毯" },
+            { title: "窗边设施", subtitle: "电动窗帘轨道顺畅/玻璃无手印/锁闭" },
+            { title: "洗面台区域", subtitle: "镜面台面无水渍/牙具护理套齐/沐浴液补齐" },
+            { title: "马桶区域", subtitle: "冲水正常/无黄渍异味/卷纸折角" },
+            { title: "淋浴与五金", subtitle: "花洒出水/地漏无发/玻璃水垢/五金光亮" },
+            { title: "卫浴布草", subtitle: "毛浴巾地巾齐全/无污渍/无破损/蓬松" },
+            { title: "离店综合", subtitle: "无异味/无遗留物/垃圾清空" }
         ];
-        const TAGS = ["污渍", "破损", "缺失", "故障", "异味", "不洁", "堵塞", "数量不足", "水渍"];
+
+        const TAGS = ["污渍", "毛发", "破损", "缺失", "水垢", "黄渍", "异味", "故障/异响", "堵塞", "遗留物", "水温异常"];
 
         // === 状态管理 ===
         let allRecords = [];
         let currentRoomItems = [];
         let currentRoomNo = "";
 
-        // === 逻辑函数 ===
+        // 初始化加载姓名
+        window.onload = function() {
+            const savedName = localStorage.getItem('inspectorName');
+            if(savedName) {
+                document.getElementById('inspectorName').value = savedName;
+            }
+        }
+
+        // 自动保存姓名
+        function saveName() {
+            const name = document.getElementById('inspectorName').value.trim();
+            localStorage.setItem('inspectorName', name);
+        }
+
+        // === 核心逻辑 ===
         
         function startCheck() {
-            const input = document.getElementById('roomNo');
-            const val = input.value.trim();
-            if(!val) {
-                alert("请先输入房号");
-                input.focus();
+            const nameInput = document.getElementById('inspectorName');
+            const roomInput = document.getElementById('roomNo');
+            
+            if(!nameInput.value.trim()) {
+                alert("请先填写您的姓名！");
+                nameInput.focus();
                 return;
             }
-            currentRoomNo = val;
-            document.getElementById('currentRoomDisplay').innerText = val;
+            saveName(); // 确保保存
+
+            if(!roomInput.value.trim()) {
+                alert("请输入房号");
+                roomInput.focus();
+                return;
+            }
+            
+            currentRoomNo = roomInput.value.trim();
+            document.getElementById('currentRoomDisplay').innerText = currentRoomNo;
+            
             document.getElementById('input-view').style.display = 'none';
             document.getElementById('checklist-view').style.display = 'flex';
+            
             renderChecklist();
         }
 
@@ -322,8 +350,8 @@
             container.innerHTML = '';
             currentRoomItems = [];
 
-            CHECK_ITEMS.forEach((name, index) => {
-                currentRoomItems.push({ name: name, status: 'pass', remark: '' });
+            CHECK_ITEMS.forEach((item, index) => {
+                currentRoomItems.push({ name: item.title, status: 'pass', remark: '' });
                 const card = document.createElement('div');
                 card.className = 'check-item-card';
                 card.dataset.idx = index;
@@ -332,8 +360,11 @@
 
                 card.innerHTML = `
                     <div class="item-header" onclick="toggleStatus(${index})">
-                        <div class="item-title">${name}</div>
-                        <div class="item-icon"></div>
+                        <div>
+                            <div class="item-title">${item.title}</div>
+                            <div class="item-subtitle">${item.subtitle}</div>
+                        </div>
+                        <div class="status-mark"></div>
                     </div>
                     <div class="fail-panel">
                         <div class="tag-group">
@@ -397,7 +428,7 @@
                 room: currentRoomNo,
                 time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'}),
                 status: isPass ? '合格' : '异常',
-                desc: isPass ? '' : failList.map(i => `[${i.name.split('/')[0]}] ${i.remark||'未填'}`).join('; ')
+                desc: isPass ? '' : failList.map(i => `[${i.name}] ${i.remark||'未填'}`).join('; ')
             };
 
             allRecords.unshift(record);
@@ -406,7 +437,6 @@
             resetToHome();
         }
 
-        // === 历史记录逻辑 ===
         function showHistory() {
             const list = document.getElementById('logListArea');
             list.innerHTML = '';
@@ -434,21 +464,46 @@
             document.getElementById('historyModal').style.display = 'none';
         }
 
+        // === 复制逻辑（含姓名和合格率） ===
         function copyReport() {
             if(allRecords.length === 0) return alert('没数据怎么复制？');
+
+            const name = document.getElementById('inspectorName').value || "未填写";
             const dateStr = new Date().toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'});
-            let text = `【📅 ${dateStr} 查房日报】\n已查：${allRecords.length}间\n----------------\n`;
+            const total = allRecords.length;
             const fails = allRecords.filter(r => r.status === '异常');
+            const passRate = Math.round(((total - fails.length) / total) * 100);
+
+            // 构造文案
+            let text = `【📅 ${dateStr} 查房日报】\n`;
+            text += `姓名：${name}\n`;
+            text += `共查：${total}间\n`;
+            text += `合格率：${passRate}%\n`;
+            text += `----------------\n`;
+            
             if(fails.length > 0) {
                 text += `🔴 异常 (${fails.length})：\n`;
-                fails.forEach(r => { text += `❌ ${r.room}：${r.desc}\n`; });
-            } else { text += `🟢 全部合格！\n`; }
+                fails.forEach(r => {
+                    text += `❌ ${r.room}：${r.desc}\n`;
+                });
+            } else {
+                text += `🟢 完美！全部合格\n`;
+            }
+
             const passes = allRecords.filter(r => r.status === '合格').map(r => r.room).join(', ');
-            if(passes) { text += `\n✅ 合格：\n${passes}`; }
+            if(passes) {
+                text += `\n✅ 合格：\n${passes}`;
+            }
 
             if(navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => alert('已复制！去微信粘贴吧')).catch(() => manualCopy(text));
-            } else { manualCopy(text); }
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('已复制！去微信粘贴吧');
+                }).catch(() => {
+                    manualCopy(text);
+                });
+            } else {
+                manualCopy(text);
+            }
         }
 
         function manualCopy(text) {
@@ -463,11 +518,22 @@
 
         function exportExcel() {
             if(allRecords.length === 0) return alert('没数据');
-            const data = [["时间", "房号", "状态", "异常详情"]];
-            allRecords.forEach(r => { data.push([r.time, r.room, r.status, r.desc]); });
+            
+            const name = document.getElementById('inspectorName').value || "未填写";
+            
+            // Excel表头
+            const data = [
+                ["查房人", name, "", ""],
+                ["时间", "房号", "状态", "异常详情"]
+            ];
+            allRecords.forEach(r => {
+                data.push([r.time, r.room, r.status, r.desc]);
+            });
+
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(data);
-            ws['!cols'] = [{wch:10}, {wch:10}, {wch:10}, {wch:50}];
+            ws['!cols'] = [{wch:10}, {wch:10}, {wch:10}, {wch:60}];
+            
             const fileName = `查房日报_${new Date().toLocaleDateString().replace(/\//g,'-')}.xlsx`;
             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
             XLSX.writeFile(wb, fileName);
